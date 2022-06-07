@@ -42,7 +42,7 @@ void xGetButtonInput(void)
 
 #define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
 
-void vDemoTask(void *pvParameters)
+void vDemoTask1(void *pvParameters)
 {
     // structure to store time retrieved from Linux kernel
     static struct timespec the_time;
@@ -53,6 +53,8 @@ void vDemoTask(void *pvParameters)
     // Only one thread can call tumDrawUpdateScreen while and thread can call
     // the drawing functions to draw objects. This is a limitation of the SDL
     // backend.
+
+    
     tumDrawBindThread();
 
     while (1) {
@@ -72,6 +74,33 @@ void vDemoTask(void *pvParameters)
         }
 
         tumDrawClear(White); // Clear screen
+
+        //EXERCISE 2.1
+        //CIRCLE
+        tumDrawCircle(150,250,50,0x00FF00);
+        
+        //TRIANLGE
+        coord_t tria_coord[3];
+        tria_coord[0].x = 300;
+        tria_coord[0].y = 200;
+        tria_coord[1].x = 250;
+        tria_coord[1].y = 300;
+        tria_coord[2].x = 350; 
+        tria_coord[2].y = 300;
+        tumDrawTriangle(tria_coord,0xFF0000);//use pointer here 
+
+        //SQUARE
+        coord_t squ_coord[4];
+        squ_coord[0].x = 400;
+        squ_coord[0].y = 200;
+        squ_coord[1].x = 400;
+        squ_coord[1].y = 300;
+        squ_coord[2].x = 500;
+        squ_coord[2].y = 300;
+        squ_coord[3].x = 500;
+        squ_coord[3].y = 200;
+
+        tumDrawPoly(squ_coord,4,0x0000FF);
 
         clock_gettime(CLOCK_REALTIME,
                       &the_time); // Get kernel real time
@@ -125,7 +154,7 @@ int main(int argc, char *argv[])
         goto err_buttons_lock;
     }
 
-    if (xTaskCreate(vDemoTask, "DemoTask", mainGENERIC_STACK_SIZE * 2, NULL,
+    if (xTaskCreate(vDemoTask1, "DemoTask", mainGENERIC_STACK_SIZE * 2, NULL,
                     mainGENERIC_PRIORITY, &DemoTask) != pdPASS) {
         goto err_demotask;
     }
@@ -162,4 +191,4 @@ __attribute__((unused)) void vApplicationIdleHook(void)
     xTimeToSleep.tv_nsec = 0;
     nanosleep(&xTimeToSleep, &xTimeSlept);
 #endif
-}
+} 
