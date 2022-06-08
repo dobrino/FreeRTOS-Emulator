@@ -4,6 +4,9 @@ trace.*
 DartConfiguration.tcl
 tidy.fixes
 
+#debugging script
+run.sh
+
 # Documentation
 docs/html
 docs/latex
