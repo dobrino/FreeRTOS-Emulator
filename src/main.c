@@ -85,6 +85,12 @@ void vDemoTask1(void *pvParameters)
     coord_t sub_top_coord;
     sub_top_coord.x = 0;
     sub_top_coord.y = 100;
+
+    //BUTTONS COUNTER
+    int a_counter = 0;
+    int b_counter = 0;
+    int c_counter = 0;
+    int d_counter = 0;
     
     tumDrawBindThread();
 
@@ -135,6 +141,31 @@ void vDemoTask1(void *pvParameters)
 
         clock_gettime(CLOCK_REALTIME,
                       &the_time); // Get kernel real time
+
+        //EXERCISE 2.2//
+        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+            if (buttons.buttons[KEYCODE(
+                                    A)]) { // Equiv to SDL_SCANCODE_A
+                a_counter += 1;
+                printf("a was pressed %d times \n", a_counter); 
+            }
+            if (buttons.buttons[KEYCODE(
+                                    B)]) { // Equiv to SDL_SCANCODE_A
+                b_counter += 1;
+                printf("b was pressed %d times \n", b_counter);
+            }
+            if (buttons.buttons[KEYCODE(
+                                    C)]) { // Equiv to SDL_SCANCODE_A
+                c_counter += 1;
+                printf("c was pressed %d times \n", c_counter);
+            }
+            if (buttons.buttons[KEYCODE(
+                                    D)]) { // Equiv to SDL_SCANCODE_A
+                d_counter += 1;
+                printf("d was pressed %d times \n", d_counter);
+            }
+            xSemaphoreGive(buttons.lock);
+        }
 
         // Format our string into our char array
         sprintf(our_time_string,
