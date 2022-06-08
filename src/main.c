@@ -54,6 +54,30 @@ void vDemoTask1(void *pvParameters)
     // the drawing functions to draw objects. This is a limitation of the SDL
     // backend.
 
+    //Instanciating and Initialiying Coordinates and parameters for objects//
+    //CIRCLE
+    coord_t circ_coord;
+    circ_coord.x = 150;
+    circ_coord.y = 250;
+    //TRIANGLE
+    coord_t tria_coord[3];
+    tria_coord[0].x = 300;
+    tria_coord[0].y = 200;
+    tria_coord[1].x = 250;
+    tria_coord[1].y = 300;
+    tria_coord[2].x = 350; 
+    tria_coord[2].y = 300;
+    //SQAURE
+    coord_t squ_coord;
+    squ_coord.x = 400;
+    squ_coord.y = 200;
+    const int squ_width = 100;
+    const int squ_height = 100;
+
+    //EXECUTION COUNTER
+    int exec_counter = 0;
+    const float rot_speed = 0.01;
+    const int rot_radius = 150;
     
     tumDrawBindThread();
 
@@ -75,33 +99,27 @@ void vDemoTask1(void *pvParameters)
 
         tumDrawClear(White); // Clear screen
 
-        //EXERCISE 2.1
+        //EXERCISE 2.1//
+        //DRAWING OBJECTS//
         //CIRCLE
-        tumDrawCircle(150,250,50,0x00FF00);
+        tumDrawCircle(circ_coord.x,circ_coord.y,50,0x00FF00);
         
         //TRIANLGE
-        coord_t tria_coord[3];
-        tria_coord[0].x = 300;
-        tria_coord[0].y = 200;
-        tria_coord[1].x = 250;
-        tria_coord[1].y = 300;
-        tria_coord[2].x = 350; 
-        tria_coord[2].y = 300;
         tumDrawTriangle(tria_coord,0xFF0000);//use pointer here 
 
         //SQUARE
-        coord_t squ_coord[4];
-        squ_coord[0].x = 400;
-        squ_coord[0].y = 200;
-        squ_coord[1].x = 400;
-        squ_coord[1].y = 300;
-        squ_coord[2].x = 500;
-        squ_coord[2].y = 300;
-        squ_coord[3].x = 500;
-        squ_coord[3].y = 200;
+        tumDrawFilledBox(squ_coord.x,squ_coord.y,squ_width, squ_height,0x0000FF);
 
-        tumDrawPoly(squ_coord,4,0x0000FF);
+        //ROTATING MOTION//
+        exec_counter +=1;
+        // CIRCLE
+        circ_coord.x =  tria_coord[0].x + rot_radius * cos(rot_speed * exec_counter + M_PI); //triangle center + radius * rotation(wt)
+        circ_coord.y = (tria_coord[0].y + tria_coord[1].y)/2 + rot_radius * sin(rot_speed * exec_counter); //triangle center + radius * rotation(wt)
 
+        //FILLED BOX
+        squ_coord.x =  -squ_width/2 + tria_coord[0].x + rot_radius * cos(rot_speed * exec_counter); //offset to squre center + triangle center + radius * rotation(wt)
+        squ_coord.y = -squ_width/2 + (tria_coord[0].y + tria_coord[1].y)/2 + rot_radius * sin(rot_speed * exec_counter + M_PI);
+        
         clock_gettime(CLOCK_REALTIME,
                       &the_time); // Get kernel real time
 
@@ -122,8 +140,8 @@ void vDemoTask1(void *pvParameters)
 
         tumDrawUpdateScreen(); // Refresh the screen to draw string
 
-        // Basic sleep of 1000 milliseconds
-        vTaskDelay((TickType_t)1000);
+        // Basic sleep of 20 milliseconds
+        vTaskDelay((TickType_t)20);
     }
 }
 
@@ -154,7 +172,7 @@ int main(int argc, char *argv[])
         goto err_buttons_lock;
     }
 
-    if (xTaskCreate(vDemoTask1, "DemoTask", mainGENERIC_STACK_SIZE * 2, NULL,
+    if (xTaskCreate(vDemoTask1, "DemoTask", mainGENERIC_STACK_SIZE * 2, NULL, //crearting Task for drawing on the display --> naming?
                     mainGENERIC_PRIORITY, &DemoTask) != pdPASS) {
         goto err_demotask;
     }
