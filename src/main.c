@@ -154,21 +154,31 @@ void vDemoTask1(void *pvParameters)
                 a_counter += 1;
                 printf("a was pressed %d times \n", a_counter); 
             }
-            if (buttons.buttons[KEYCODE(B)]) { // Equiv to SDL_SCANCODE_A
+            if (buttons.buttons[KEYCODE(B)]) { // Equiv to SDL_SCANCODE_B
                 buttons.buttons[KEYCODE(B)] = 0;
                 b_counter += 1;
                 printf("b was pressed %d times \n", b_counter);
             }
-            if (buttons.buttons[KEYCODE(C)]) { // Equiv to SDL_SCANCODE_A
+            if (buttons.buttons[KEYCODE(C)]) { // Equiv to SDL_SCANCODE_C
                 buttons.buttons[KEYCODE(C)] = 0;
                 c_counter += 1;
                 printf("c was pressed %d times \n", c_counter);
             }
-            if (buttons.buttons[KEYCODE(D)]) { // Equiv to SDL_SCANCODE_A
+            if (buttons.buttons[KEYCODE(D)]) { // Equiv to SDL_SCANCODE_D
                 buttons.buttons[KEYCODE(D)] = 0;
                 d_counter += 1;
                 printf("d was pressed %d times \n", d_counter);
             }
+            if (tumEventGetMouseLeft()) { //Mouse Click Right
+                //buttons.buttons[KEYCODE(D)] = 0;
+                a_counter = 0;
+                b_counter = 0;
+                c_counter = 0;
+                d_counter = 0;
+                printf("All values have been reset \n");
+                
+            }
+
             xSemaphoreGive(buttons.lock);
         }
 
