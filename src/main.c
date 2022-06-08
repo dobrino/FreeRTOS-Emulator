@@ -78,6 +78,13 @@ void vDemoTask1(void *pvParameters)
     int exec_counter = 0;
     const float rot_speed = 0.01;
     const int rot_radius = 150;
+
+    //TEXT
+    const char subtitle_bottom[] = "Max Herbst, der High-Performer";
+    const char subtitle_top[] = "PYX rules";
+    coord_t sub_top_coord;
+    sub_top_coord.x = 0;
+    sub_top_coord.y = 100;
     
     tumDrawBindThread();
 
@@ -110,7 +117,10 @@ void vDemoTask1(void *pvParameters)
         //SQUARE
         tumDrawFilledBox(squ_coord.x,squ_coord.y,squ_width, squ_height,0x0000FF);
 
-        //ROTATING MOTION//
+        //TEXT
+        tumDrawText(subtitle_bottom,200, 400, 0x000000);
+        tumDrawText(subtitle_top,sub_top_coord.x, sub_top_coord.y, 0x000000);
+        //MOTION//
         exec_counter +=1;
         // CIRCLE
         circ_coord.x =  tria_coord[0].x + rot_radius * cos(rot_speed * exec_counter + M_PI); //triangle center + radius * rotation(wt)
@@ -118,8 +128,11 @@ void vDemoTask1(void *pvParameters)
 
         //FILLED BOX
         squ_coord.x =  -squ_width/2 + tria_coord[0].x + rot_radius * cos(rot_speed * exec_counter); //offset to squre center + triangle center + radius * rotation(wt)
-        squ_coord.y = -squ_width/2 + (tria_coord[0].y + tria_coord[1].y)/2 + rot_radius * sin(rot_speed * exec_counter + M_PI);
+        squ_coord.y = -squ_width/2 + (tria_coord[0].y + tria_coord[1].y)/2 + rot_radius * sin(rot_speed * exec_counter + M_PI); //offset to squre center + triangle center + radius * rotation(wt)
         
+        //SUBTITLE TOP
+        sub_top_coord.x = SCREEN_WIDTH/2 + (SCREEN_WIDTH)/2 * sin(rot_speed * exec_counter); //screen center + sin motion, left <-> right
+
         clock_gettime(CLOCK_REALTIME,
                       &the_time); // Get kernel real time
 
