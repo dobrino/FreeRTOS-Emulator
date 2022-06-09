@@ -178,6 +178,8 @@ void vDemoTask1(void *pvParameters)
                 printf("All values have been reset \n");
                 
             }
+            sprintf(subtitle_bottom,"A: %d | B: %d | C: %d | D: %d",
+                a_counter,b_counter,c_counter,d_counter);
 
             xSemaphoreGive(buttons.lock);
         }
