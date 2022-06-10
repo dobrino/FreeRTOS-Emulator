@@ -42,7 +42,7 @@ void xGetButtonInput(void)
 
 #define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
 
-void vDemoTask1(void *pvParameters)
+void vEx2_2(void *pvParameters)
 {
     // structure to store time retrieved from Linux kernel
     static struct timespec the_time;
@@ -56,11 +56,11 @@ void vDemoTask1(void *pvParameters)
 
     //Instanciating and Initialiying Coordinates and parameters for objects//
     //CIRCLE
-    coord_t circ_coord;
+    static coord_t circ_coord;
     circ_coord.x = 150;
     circ_coord.y = 250;
     //TRIANGLE
-    coord_t tria_coord[3];
+    static coord_t tria_coord[3];
     tria_coord[0].x = 300;
     tria_coord[0].y = 200;
     tria_coord[1].x = 250;
@@ -68,7 +68,7 @@ void vDemoTask1(void *pvParameters)
     tria_coord[2].x = 350; 
     tria_coord[2].y = 300;
     //SQAURE
-    coord_t squ_coord;
+    static coord_t squ_coord;
     squ_coord.x = 400;
     squ_coord.y = 200;
     const int squ_width = 100;
@@ -82,9 +82,12 @@ void vDemoTask1(void *pvParameters)
     //TEXT
     const char subtitle_bottom[] = "Max Herbst, der High-Performer";
     const char subtitle_top[] = "PYX rules";
-    coord_t sub_top_coord;
+    static coord_t sub_top_coord;
+    static coord_t sub_bottom_coord;
     sub_top_coord.x = 0;
     sub_top_coord.y = 100;
+    sub_bottom_coord.x = 150;
+    sub_bottom_coord.y = 400;
 
     //BUTTONS COUNTER
     int a_counter = 0;
@@ -95,6 +98,10 @@ void vDemoTask1(void *pvParameters)
     int b_counter_en = 0;
     int c_counter_en = 0;
     int d_counter_en = 0;
+    // MOUSE COORD
+    coord_t mouse_coord;
+    mouse_coord.x = 0;
+    mouse_coord.y = 0;
     
     tumDrawBindThread();
 
@@ -123,15 +130,23 @@ void vDemoTask1(void *pvParameters)
         
         //TRIANLGE
         tumDrawTriangle(tria_coord,0xFF0000);//use pointer here 
-
+        //Triangle is used as the center for all the other objects
         //SQUARE
         tumDrawFilledBox(squ_coord.x,squ_coord.y,squ_width, squ_height,0x0000FF);
 
         //TEXT
-        tumDrawText(subtitle_bottom,200, 400, 0x000000);
+        tumDrawText(subtitle_bottom,sub_bottom_coord.x, sub_bottom_coord.y, 0x000000);
         tumDrawText(subtitle_top,sub_top_coord.x, sub_top_coord.y, 0x000000);
         //MOTION//
         exec_counter +=1;
+        //movement with mouse:
+        tria_coord[0].x = mouse_coord.x;
+        tria_coord[0].y = mouse_coord.y - 50;
+        tria_coord[1].x = mouse_coord.x + 50;
+        tria_coord[1].y = mouse_coord.y + 50;
+        tria_coord[2].x = mouse_coord.x - 50; 
+        tria_coord[2].y = mouse_coord.y + 50;
+
         // CIRCLE
         circ_coord.x =  tria_coord[0].x + rot_radius * cos(rot_speed * exec_counter + M_PI); //triangle center + radius * rotation(wt)
         circ_coord.y = (tria_coord[0].y + tria_coord[1].y)/2 + rot_radius * sin(rot_speed * exec_counter); //triangle center + radius * rotation(wt)
@@ -141,11 +156,15 @@ void vDemoTask1(void *pvParameters)
         squ_coord.y = -squ_width/2 + (tria_coord[0].y + tria_coord[1].y)/2 + rot_radius * sin(rot_speed * exec_counter + M_PI); //offset to squre center + triangle center + radius * rotation(wt)
         
         //SUBTITLE TOP
-        sub_top_coord.x = SCREEN_WIDTH/2 + (SCREEN_WIDTH)/2 * sin(rot_speed * exec_counter); //screen center + sin motion, left <-> right
+        sub_top_coord.x = mouse_coord.x * sin(rot_speed * exec_counter); //screen center + sin motion, left <-> right
+        sub_top_coord.y = mouse_coord.y - 100;
+
+        //SUBTITLE BOTTOM 
+        sub_bottom_coord.x = mouse_coord.x - 150;
+        sub_bottom_coord.y = mouse_coord.y + 150;
 
         clock_gettime(CLOCK_REALTIME,
                       &the_time); // Get kernel real time
-
 
         //EXERCISE 2.2//
         if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -175,29 +194,21 @@ void vDemoTask1(void *pvParameters)
                 b_counter = 0;
                 c_counter = 0;
                 d_counter = 0;
-                printf("All values have been reset \n");
-                
+                printf("All values have been reset \n"); 
             }
-            sprintf(subtitle_bottom,"A: %d | B: %d | C: %d | D: %d",
-                a_counter,b_counter,c_counter,d_counter);
+            if(tumEventGetMouseX()){
+                mouse_coord.x = tumEventGetMouseX();
+            }
+            if(tumEventGetMouseY()){
+                mouse_coord.y = tumEventGetMouseY();
+            }
+            sprintf(subtitle_bottom,"A: %d | B: %d | C: %d | D: %d  Mouse_x : %d Mouse_y : %d", //printing string to subtitle bottom do be drawn on the bottom 
+                a_counter,b_counter,c_counter,d_counter,mouse_coord.x,mouse_coord.y);
 
             xSemaphoreGive(buttons.lock);
+
         }
 
-        // Format our string into our char array
-        sprintf(our_time_string,
-                "There has been %ld seconds since the Epoch. Press Q to quit",
-                (long int)the_time.tv_sec);
-
-        // Get the width of the string on the screen so we can center it
-        // Returns 0 if width was successfully obtained
-        if (!tumGetTextSize((char *)our_time_string,
-                            &our_time_strings_width, NULL))
-            tumDrawText(our_time_string,
-                        SCREEN_WIDTH / 2 -
-                        our_time_strings_width / 2,
-                        SCREEN_HEIGHT / 2 - DEFAULT_FONT_SIZE / 2,
-                        TUMBlue);
 
         tumDrawUpdateScreen(); // Refresh the screen to draw string
 
@@ -233,16 +244,16 @@ int main(int argc, char *argv[])
         goto err_buttons_lock;
     }
 
-    if (xTaskCreate(vDemoTask1, "DemoTask", mainGENERIC_STACK_SIZE * 2, NULL, //crearting Task for drawing on the display --> naming?
+    if (xTaskCreate(vEx2_2, "Button Task", mainGENERIC_STACK_SIZE * 2, NULL, 
                     mainGENERIC_PRIORITY, &DemoTask) != pdPASS) {
-        goto err_demotask;
+        goto err_buttontask;
     }
 
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
-err_demotask:
+err_buttontask:
     vSemaphoreDelete(buttons.lock);
 err_buttons_lock:
     tumSoundExit();
