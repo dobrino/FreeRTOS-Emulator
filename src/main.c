@@ -79,12 +79,17 @@ static TaskHandle_t DemoSendTask = NULL;
 static TaskHandle_t Exercise3 = NULL;
 static TaskHandle_t Circle1 = NULL;
 static TaskHandle_t Circle2 = NULL;
+static TaskHandle_t RandTask1 = NULL;
+static TaskHandle_t RandTask2 = NULL;
  
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
 
 static image_handle_t logo_image = NULL;
+
+static int task1_counter = 0;
+static int task2_counter = 0;
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -176,6 +181,9 @@ initial_state:
                     if(Circle1){
                         vTaskSuspend(Circle1);
                     }
+                    if(Circle2){
+                        vTaskSuspend(Circle2);
+                    }
                     printf("We are in Statge 1");
                     break;
                 case STATE_TWO:
@@ -187,6 +195,9 @@ initial_state:
                     }
                     if(Circle1){
                         vTaskSuspend(Circle1);
+                    }
+                    if(Circle2){
+                        vTaskSuspend(Circle2);
                     }
                     printf("We are in Statge 2");
                     break;
@@ -200,6 +211,9 @@ initial_state:
                     }
                     if(Circle1){
                         vTaskResume(Circle1);
+                    }
+                    if(Circle2){
+                        vTaskResume(Circle2);
                     }
                     printf("We are in State 3");
                     break;
@@ -841,12 +855,85 @@ void vCircle1(void *pvParameters)
                 // Check for state change
                 vCheckStateInput();
 
+
+                //Controlling RandTask1 and RandTask2
+
                 // Keep track of when task last ran so that you know how many ticks
                 //(in our case miliseconds) have passed so that the balls position
                 // can be updated appropriatley
                 prevWakeTime = xLastWakeTime;
-                vTaskDelay(pdMS_TO_TICKS(500));
+                vTaskDelay(pdMS_TO_TICKS(20));
             }
+    }
+}
+void vCircle2(void *pvParameters)
+{
+    TickType_t xLastWakeTime, prevWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    prevWakeTime = xLastWakeTime;
+    
+    char circle_en = NULL;
+
+    prints("Task 1 init'd\n");
+
+    while (1) {
+        if (DrawSignal)
+            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+                pdTRUE) {
+                xLastWakeTime = xTaskGetTickCount();
+
+                xGetButtonInput(); // Update global button data
+
+                xSemaphoreTake(ScreenLock, portMAX_DELAY);
+                // Clear screen
+                checkDraw(tumDrawClear(White), __FUNCTION__);
+
+                vDrawStaticItems();
+
+                if(circle_en){
+                    tumDrawCircle(200,300,100,0x0000FFe);
+                    circle_en = NULL;
+                }
+                else{
+                    circle_en = 1;
+                }
+                
+                // Draw FPS in lower right corner
+                vDrawFPS();
+
+                xSemaphoreGive(ScreenLock);
+
+                // Check for state change
+                vCheckStateInput();
+
+                // Keep track of when task last ran so that you know how many ticks
+                //(in our case miliseconds) have passed so that the balls position
+                // can be updated appropriatley
+                prevWakeTime = xLastWakeTime;
+                vTaskDelay(pdMS_TO_TICKS(1000));
+            }
+    }
+}
+
+
+void vRandTask1(void *pvParameters)
+{    
+    char text[100];
+    while (1) {
+        sprintf(text, "this Task was triggerd %d times", task1_counter);
+        tumDrawText(text,400,400,0xFF0000);
+        vTaskSuspend(RandTask1);
+    }
+} 
+
+
+void vRandTask2(void *pvParameters)
+{    
+
+    while (1) {
+        task2_counter++;
+        vTaskSuspend(RandTask2);
+        printf("%d",task2_counter);
     }
 }
 
@@ -984,8 +1071,23 @@ int main(int argc, char *argv[])
         PRINT_TASK_ERROR("DemoTask2");
         goto err_demotask2;
     }
-    if (xTaskCreate(vCircle1, "DemoTask2", mainGENERIC_STACK_SIZE * 2,
-                    NULL, mainGENERIC_PRIORITY, &Circle1) != pdPASS) {
+    if (xTaskCreate(vCircle1, "Circle1",  mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY+1, &Circle1) != pdPASS) {
+        PRINT_TASK_ERROR("DemoTask2");
+        goto err_circle1;
+    }
+    if (xTaskCreate(vCircle2, "Circle2", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &Circle2) != pdPASS) {
+        PRINT_TASK_ERROR("DemoTask2");
+        goto err_circle1;
+    }    
+    if (xTaskCreate(vRandTask1, "RandTask1", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY+1, &RandTask1) != pdPASS) {
+        PRINT_TASK_ERROR("DemoTask2");
+        goto err_circle1;
+    }
+    if (xTaskCreate(vRandTask2, "RandTask2", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &RandTask2) != pdPASS) {
         PRINT_TASK_ERROR("DemoTask2");
         goto err_circle1;
     }
@@ -1006,6 +1108,7 @@ int main(int argc, char *argv[])
     vTaskSuspend(DemoTask1);
     vTaskSuspend(DemoTask2);
     vTaskSuspend(Circle1);
+    vTaskSuspend(RandTask1);
 
     tumFUtilPrintTaskStateList();
 
