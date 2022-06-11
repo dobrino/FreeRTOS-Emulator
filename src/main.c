@@ -379,8 +379,8 @@ void vDrawButtonText(void)
 static int vCheckStateInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(C)]) {
-            buttons.buttons[KEYCODE(C)] = 0;
+        if (buttons.buttons[KEYCODE(E)]) {
+            buttons.buttons[KEYCODE(E)] = 0;
             if (StateQueue) {
                 xSemaphoreGive(buttons.lock);
                 xQueueSend(StateQueue, &next_state_signal, 0);
