@@ -77,7 +77,9 @@ static TaskHandle_t TCPDemoTask = NULL;
 static TaskHandle_t MQDemoTask = NULL;
 static TaskHandle_t DemoSendTask = NULL;
 static TaskHandle_t Exercise3 = NULL;
-
+static TaskHandle_t Circle1 = NULL;
+static TaskHandle_t Circle2 = NULL;
+ 
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -586,7 +588,7 @@ void vDemoTask1(void *pvParameters)
                 xSemaphoreTake(ScreenLock, portMAX_DELAY);
 
                 // Clear screen
-                //checkDraw(tumDrawClear(White), __FUNCTION__);
+                checkDraw(tumDrawClear(White), __FUNCTION__);
                 vDrawStaticItems();
                 
                 xLastFrameTime = xTaskGetTickCount();
@@ -781,6 +783,39 @@ void vDemoTask2(void *pvParameters)
                 vDrawFPS();
 
                 xSemaphoreGive(ScreenLock);
+
+                // Check for state change
+                vCheckStateInput();
+
+                // Keep track of when task last ran so that you know how many ticks
+                //(in our case miliseconds) have passed so that the balls position
+                // can be updated appropriatley
+                prevWakeTime = xLastWakeTime;
+            }
+    }
+}
+
+void vCircle1(void *pvParameters)
+{
+    TickType_t xLastWakeTime, prevWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    prevWakeTime = xLastWakeTime;
+
+    prints("Task 1 init'd\n");
+
+    while (1) {
+        if (DrawSignal)
+            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+                pdTRUE) {
+                xLastWakeTime = xTaskGetTickCount();
+
+                xGetButtonInput(); // Update global button data
+
+                xSemaphoreTake(ScreenLock, portMAX_DELAY);
+                // Clear screen
+                checkDraw(tumDrawClear(White), __FUNCTION__);
+                tumDrawCircle(300,300,200,0x000000);
+                vDrawStaticItems();
 
                 // Check for state change
                 vCheckStateInput();
