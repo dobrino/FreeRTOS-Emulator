@@ -124,10 +124,10 @@ void vEx2_2(void *pvParameters)
     mouse_coord.x = 0;
     mouse_coord.y = 0;
     
-    //tumDrawBindThread();
+    tumDrawBindThread();
 
     while (1) {
-        //tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
+        tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
         xGetButtonInput(); // Update global input
 
         // `buttons` is a global shared variable and as such needs to be
@@ -234,7 +234,7 @@ void vEx2_2(void *pvParameters)
         tumDrawUpdateScreen(); // Refresh the screen to draw string
 
         // Get input and check for state change
-        vCheckStateInput();
+        //vCheckStateInput();
 
         // Basic sleep of 20 milliseconds
         vTaskDelay((TickType_t)100);
@@ -390,23 +390,23 @@ int main(int argc, char *argv[])
         goto err_buttons_lock;
     }
 
-    if(xTaskCreate(basicSequentialStateMachine, "StateMachine",
-                      mainGENERIC_STACK_SIZE * 2, NULL,
-                      configMAX_PRIORITIES - 1, &StateMachine) != pdPASS){
-         printf("Error Statemachine");
-         goto err_statemachine;
-    }
+    // if(xTaskCreate(basicSequentialStateMachine, "StateMachine",
+    //                   mainGENERIC_STACK_SIZE * 2, NULL,
+    //                   configMAX_PRIORITIES - 1, &StateMachine) != pdPASS){
+    //      printf("Error Statemachine");
+    //      goto err_statemachine;
+    // }
 
     if (xTaskCreate(vEx2_2, "Button Task", mainGENERIC_STACK_SIZE * 2, NULL, 
                     mainGENERIC_PRIORITY + 1, &DemoTask1) != pdPASS) {
         printf("Error DemoTask1");
         goto err_buttontask;
     }
-    if(xTaskCreate(vDemoTask2, "Demo Task 2",
-                     mainGENERIC_STACK_SIZE * 2, NULL,
-                     mainGENERIC_PRIORITY, &DemoTask2) != pdPASS){
-        printf("Error DemoTask2");         
-    }
+    // if(xTaskCreate(vDemoTask2, "Demo Task 2",
+    //                  mainGENERIC_STACK_SIZE * 2, NULL,
+    //                  mainGENERIC_PRIORITY, &DemoTask2) != pdPASS){
+    //     printf("Error DemoTask2");         
+    // }
 
 
     vTaskSuspend(DemoTask1);
