@@ -25,7 +25,7 @@
 
 #define STATE_QUEUE_LENGTH 1
 
-#define STATE_COUNT 2
+#define STATE_COUNT 3
 
 #define STATE_ONE 0
 #define STATE_TWO 1
@@ -173,9 +173,10 @@ initial_state:
                     if (DemoTask1) {
                         vTaskResume(DemoTask1);
                     }
-                    if(Exercise3){
-                        vTaskSuspend(Exercise3);
+                    if(Circle1){
+                        vTaskSuspend(Circle1);
                     }
+                    printf("We are in Statge 1");
                     break;
                 case STATE_TWO:
                     if (DemoTask1) {
@@ -184,20 +185,24 @@ initial_state:
                     if (DemoTask2) {
                         vTaskResume(DemoTask2);
                     }
-                    if(Exercise3){
-                        vTaskSuspend(Exercise3);
+                    if(Circle1){
+                        vTaskSuspend(Circle1);
                     }
+                    printf("We are in Statge 2");
                     break;
                 case STATE_THREE:
+                    printf("We are in Statge 3");
                     if (DemoTask1) {
                         vTaskSuspend(DemoTask1);
                     }
                     if (DemoTask2) {
                         vTaskSuspend(DemoTask2);
                     }
-                    if(Exercise3){
-                        vTaskResume(Exercise3);
+                    if(Circle1){
+                        vTaskResume(Circle1);
                     }
+                    printf("We are in State 3");
+                    break;
                 default:
                     break;
             }
@@ -592,8 +597,7 @@ void vDemoTask1(void *pvParameters)
                 vDrawStaticItems();
                 
                 xLastFrameTime = xTaskGetTickCount();
-
-                xSemaphoreGive(ScreenLock);
+          
 
                 //EXERCISE 2.1//
                 //DRAWING OBJECTS//
@@ -681,6 +685,7 @@ void vDemoTask1(void *pvParameters)
         }
                         
         // Get input and check for state change
+        xSemaphoreGive(ScreenLock);
         vCheckStateInput();
     }
 }
@@ -692,7 +697,7 @@ void playBallSound(void *args)
 
 
 void vDemoTask2(void *pvParameters)
-{
+{   
     TickType_t xLastWakeTime, prevWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime;
@@ -724,7 +729,7 @@ void vDemoTask2(void *pvParameters)
     prints("Task 1 init'd\n");
 
     while (1) {
-        if (DrawSignal)
+        if (DrawSignal){
             if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
                 pdTRUE) {
                 xLastWakeTime = xTaskGetTickCount();
@@ -792,6 +797,7 @@ void vDemoTask2(void *pvParameters)
                 // can be updated appropriatley
                 prevWakeTime = xLastWakeTime;
             }
+        }
     }
 }
 
@@ -800,6 +806,8 @@ void vCircle1(void *pvParameters)
     TickType_t xLastWakeTime, prevWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime;
+
+
 
     prints("Task 1 init'd\n");
 
@@ -814,8 +822,15 @@ void vCircle1(void *pvParameters)
                 xSemaphoreTake(ScreenLock, portMAX_DELAY);
                 // Clear screen
                 checkDraw(tumDrawClear(White), __FUNCTION__);
-                tumDrawCircle(300,300,200,0x000000);
+
                 vDrawStaticItems();
+
+                // Draw the walls
+                tumDrawCircle(400,300,100,0x00FF00);
+                // Draw FPS in lower right corner
+                vDrawFPS();
+
+                xSemaphoreGive(ScreenLock);
 
                 // Check for state change
                 vCheckStateInput();
@@ -827,6 +842,8 @@ void vCircle1(void *pvParameters)
             }
     }
 }
+
+
 
 void vExercise3(void *pvParameters)
 {
@@ -961,10 +978,12 @@ int main(int argc, char *argv[])
         PRINT_TASK_ERROR("DemoTask2");
         goto err_demotask2;
     }
-    if (xTaskCreate(vDemoTask2, "vExercise3", mainGENERIC_STACK_SIZE * 2,
-                    NULL, mainGENERIC_PRIORITY, &Exercise3) != pdPASS) {
-        PRINT_TASK_ERROR("Exercise3");
+    if (xTaskCreate(vCircle1, "DemoTask2", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &Circle1) != pdPASS) {
+        PRINT_TASK_ERROR("DemoTask2");
+        goto err_circle1;
     }
+
 
     // /** SOCKETS */
     // xTaskCreate(vUDPDemoTask, "UDPTask", mainGENERIC_STACK_SIZE * 2, NULL,
@@ -980,6 +999,7 @@ int main(int argc, char *argv[])
 
     vTaskSuspend(DemoTask1);
     vTaskSuspend(DemoTask2);
+    vTaskSuspend(Circle1);
 
     tumFUtilPrintTaskStateList();
 
@@ -991,6 +1011,8 @@ err_demotask2:
     vTaskDelete(DemoTask1);
 err_demotask1:
     vTaskDelete(BufferSwap);
+err_circle1:
+    vTaskDelete(Circle1);
 err_bufferswap:
     vTaskDelete(StateMachine);
 err_statemachine:
