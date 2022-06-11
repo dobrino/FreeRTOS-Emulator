@@ -586,7 +586,7 @@ void vDemoTask1(void *pvParameters)
                 xSemaphoreTake(ScreenLock, portMAX_DELAY);
 
                 // Clear screen
-                checkDraw(tumDrawClear(White), __FUNCTION__);
+                //checkDraw(tumDrawClear(White), __FUNCTION__);
                 vDrawStaticItems();
                 
                 xLastFrameTime = xTaskGetTickCount();
@@ -680,9 +680,6 @@ void vDemoTask1(void *pvParameters)
                         
         // Get input and check for state change
         vCheckStateInput();
-        
-        // Basic sleep of 20 milliseconds
-        vTaskDelay((TickType_t)20);
     }
 }
 
