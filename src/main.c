@@ -384,12 +384,12 @@ int main(int argc, char *argv[])
         goto err_buttons_lock;
     }
 
-    // if(xTaskCreate(basicSequentialStateMachine, "StateMachine",
-    //                   mainGENERIC_STACK_SIZE * 2, NULL,
-    //                   configMAX_PRIORITIES - 1, &StateMachine) != pdPASS){
-    //      printf("Error Statemachine");
-    //      goto err_statemachine;
-    // }
+     if(xTaskCreate(basicSequentialStateMachine, "StateMachine",
+                       mainGENERIC_STACK_SIZE * 2, NULL,
+                       configMAX_PRIORITIES - 1, &StateMachine) != pdPASS){
+          printf("Error Statemachine");
+          goto err_statemachine;
+    }
 
     if (xTaskCreate(vEx2_2, "Button Task", mainGENERIC_STACK_SIZE * 2, NULL, 
                     mainGENERIC_PRIORITY, &DemoTask1) != pdPASS) {

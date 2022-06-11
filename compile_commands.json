@@ -6,6 +6,11 @@
 },
 {
   "directory": "/home/rtos-sim/FreeRTOS-Exercise",
+  "command": "/usr/bin/cc   -I/usr/include/SDL2 -I/home/rtos-sim/FreeRTOS-Exercise/lib/FreeRTOS_Kernel/include -I/home/rtos-sim/FreeRTOS-Exercise/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/rtos-sim/FreeRTOS-Exercise/include -I/home/rtos-sim/FreeRTOS-Exercise/lib/Gfx/include -I/home/rtos-sim/FreeRTOS-Exercise/lib/AsyncIO/include -I/home/rtos-sim/FreeRTOS-Exercise/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/src/trash.c.o   -c /home/rtos-sim/FreeRTOS-Exercise/src/trash.c",
+  "file": "/home/rtos-sim/FreeRTOS-Exercise/src/trash.c"
+},
+{
+  "directory": "/home/rtos-sim/FreeRTOS-Exercise",
   "command": "/usr/bin/cc   -I/usr/include/SDL2 -I/home/rtos-sim/FreeRTOS-Exercise/lib/FreeRTOS_Kernel/include -I/home/rtos-sim/FreeRTOS-Exercise/lib/FreeRTOS_Kernel/portable/GCC/Posix -I/home/rtos-sim/FreeRTOS-Exercise/include -I/home/rtos-sim/FreeRTOS-Exercise/lib/Gfx/include -I/home/rtos-sim/FreeRTOS-Exercise/lib/AsyncIO/include -I/home/rtos-sim/FreeRTOS-Exercise/lib/tracer/include  -g   -Wall -O0 -o CMakeFiles/FreeRTOS_Emulator.dir/lib/FreeRTOS_Kernel/croutine.c.o   -c /home/rtos-sim/FreeRTOS-Exercise/lib/FreeRTOS_Kernel/croutine.c",
   "file": "/home/rtos-sim/FreeRTOS-Exercise/lib/FreeRTOS_Kernel/croutine.c"
 },
