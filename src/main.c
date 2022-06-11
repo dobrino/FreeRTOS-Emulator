@@ -159,7 +159,7 @@ void vEx2_2(void *pvParameters)
         tumDrawText(subtitle_bottom,sub_bottom_coord.x, sub_bottom_coord.y, 0x000000);
         tumDrawText(subtitle_top,sub_top_coord.x, sub_top_coord.y, 0x000000);
         //MOTION//
-        exec_counter +=1;
+        exec_counter++;
         //movement with mouse:
         tria_coord[0].x = mouse_coord.x;
         tria_coord[0].y = mouse_coord.y - 50;
@@ -243,21 +243,15 @@ void vEx2_2(void *pvParameters)
 
 void vDemoTask2(void *pvParameters)
 {
+    printf("Starting Task 2");
     while(1)
     {   
-        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-            if (buttons.buttons[KEYCODE(
-                                    Q)]) { // Equiv to SDL_SCANCODE_Q
-                exit(EXIT_SUCCESS);
-            }
-            xSemaphoreGive(buttons.lock);
-        }
         
-        tumDrawClear(White);
+        tumDrawText("This it the second Task",300,300,0x0000FF);
         // Get input and check for state change
-        vCheckStateInput();
+        // vCheckStateInput();
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -398,20 +392,15 @@ int main(int argc, char *argv[])
     // }
 
     if (xTaskCreate(vEx2_2, "Button Task", mainGENERIC_STACK_SIZE * 2, NULL, 
-                    mainGENERIC_PRIORITY + 1, &DemoTask1) != pdPASS) {
+                    mainGENERIC_PRIORITY, &DemoTask1) != pdPASS) {
         printf("Error DemoTask1");
         goto err_buttontask;
     }
-    // if(xTaskCreate(vDemoTask2, "Demo Task 2",
-    //                  mainGENERIC_STACK_SIZE * 2, NULL,
-    //                  mainGENERIC_PRIORITY, &DemoTask2) != pdPASS){
-    //     printf("Error DemoTask2");         
-    // }
-
-
-    vTaskSuspend(DemoTask1);
-    vTaskSuspend(DemoTask2);   
-
+    if(xTaskCreate(vDemoTask2, "Demo Task 2",
+                     mainGENERIC_STACK_SIZE * 2, NULL,
+                     10, &DemoTask2) != pdPASS){
+        printf("Error DemoTask2");         
+    }
 
 
     vTaskStartScheduler();
