@@ -23,7 +23,27 @@
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
 
-static TaskHandle_t DemoTask = NULL;
+#define STATE_QUEUE_LENGTH 1
+
+#define STATE_COUNT 2
+
+#define STATE_ONE 0
+#define STATE_TWO 1
+
+#define NEXT_TASK 0
+#define PREV_TASK 1
+
+#define STATE_DEBOUNCE_DELAY 300
+
+#define STARTING_STATE STATE_ONE
+
+static QueueHandle_t StateQueue = NULL;
+
+const unsigned char next_state_signal = NEXT_TASK;
+const unsigned char prev_state_signal = PREV_TASK;
+
+static TaskHandle_t DemoTask1 = NULL;
+static TaskHandle_t DemoTask2 = NULL;
 static TaskHandle_t StateMachine = NULL;
 
 typedef struct buttons_buffer {
@@ -104,10 +124,10 @@ void vEx2_2(void *pvParameters)
     mouse_coord.x = 0;
     mouse_coord.y = 0;
     
-    tumDrawBindThread();
+    //tumDrawBindThread();
 
     while (1) {
-        tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
+        //tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
         xGetButtonInput(); // Update global input
 
         // `buttons` is a global shared variable and as such needs to be
@@ -213,65 +233,133 @@ void vEx2_2(void *pvParameters)
 
         tumDrawUpdateScreen(); // Refresh the screen to draw string
 
+        // Get input and check for state change
+        vCheckStateInput();
+
         // Basic sleep of 20 milliseconds
         vTaskDelay((TickType_t)100);
     }
 }
 
-//STATE MACHINE
-void basicSequentialStateMachine(void *pvParameters)
+void vDemoTask2(void *pvParameters)
 {
-//     unsigned char current_state = STARTING_STATE; // Default state
-//     unsigned char state_changed =
-//         1; // Only re-evaluate state if it has changed
-//     unsigned char input = 0;
+    while(1)
+    {   
+        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+            if (buttons.buttons[KEYCODE(
+                                    Q)]) { // Equiv to SDL_SCANCODE_Q
+                exit(EXIT_SUCCESS);
+            }
+            xSemaphoreGive(buttons.lock);
+        }
+        
+        tumDrawClear(White);
+        // Get input and check for state change
+        vCheckStateInput();
 
-//     const int state_change_period = STATE_DEBOUNCE_DELAY;
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
 
-//     TickType_t last_change = xTaskGetTickCount();
+//STATE MACHINE
 
-//     while (1) {
-//         if (state_changed) {
-//             goto initial_state;
-//         }
+void changeState(volatile unsigned char *state, unsigned char forwards)
+{
+    switch (forwards) {
+        case NEXT_TASK:
+            if (*state == STATE_COUNT - 1) {
+                *state = 0;
+            }
+            else {
+                (*state)++;
+            }
+            break;
+        case PREV_TASK:
+            if (*state == 0) {
+                *state = STATE_COUNT - 1;
+            }
+            else {
+                (*state)--;
+            }
+            break;
+        default:
+            break;
+    }
+}
 
-//         // Handle state machine input
-//         if (StateQueue)
-//             if (xQueueReceive(StateQueue, &input, portMAX_DELAY) ==
-//                 pdTRUE)
-//                 if (xTaskGetTickCount() - last_change >
-//                     state_change_period) {
-//                     changeState(&current_state, input);
-//                     state_changed = 1;
-//                     last_change = xTaskGetTickCount();
-//                 }
+int vCheckStateInput(void)
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(E)]) {
+            buttons.buttons[KEYCODE(E)] = 0;
+            if (StateQueue) {
+                xSemaphoreGive(buttons.lock);
+                xQueueSend(StateQueue, &next_state_signal, 0);
+                return 0;
+            }
+            return -1;
+        }
+        xSemaphoreGive(buttons.lock);
+    }
 
-// initial_state:
-//         Handle current state
-//         if (state_changed) {
-//             switch (current_state) {
-//                 case STATE_ONE:
-//                     if (DemoTask) {
-//                         vTaskSuspend(DemoTask2);
-//                     }
-//                     if (DemoTask1) {
-//                         vTaskResume(DemoTask1);
-//                     }
-//                     break;
-//                 case STATE_TWO:
-//                     if (DemoTask1) {
-//                         vTaskSuspend(DemoTask1);
-//                     }
-//                     if (DemoTask2) {
-//                         vTaskResume(DemoTask2);
-//                     }
-//                     break;
-//                 default:
-//                     break;
-//             }
-//             state_changed = 0;
-//         }
-//     }
+    return 0;
+}
+
+void basicSequentialStateMachine(void *pvParameters)
+{    
+    unsigned char current_state = STARTING_STATE; // Default state
+    unsigned char state_changed =
+        1; // Only re-evaluate state if it has changed
+    unsigned char input = 0;
+
+    const int state_change_period = STATE_DEBOUNCE_DELAY;
+
+    TickType_t last_change = xTaskGetTickCount();
+
+    while (1) {
+        if (state_changed) {
+            goto initial_state;
+        }
+
+        // Handle state machine input
+        if (StateQueue)
+            if (xQueueReceive(StateQueue, &input, portMAX_DELAY) ==
+                pdTRUE)
+                if (xTaskGetTickCount() - last_change >
+                    state_change_period) {
+                    changeState(&current_state, input);
+                    state_changed = 1;
+                    last_change = xTaskGetTickCount();
+                }
+
+initial_state:
+        //Handle current state
+        if (state_changed) {
+            switch (current_state) {
+                case STATE_ONE:
+                    if (DemoTask2) {
+                        vTaskSuspend(DemoTask2);
+                    }
+                    if (DemoTask1) {
+                        vTaskResume(DemoTask1);
+                    }
+                    break;
+                case STATE_TWO:
+                    if (DemoTask1) {
+                        vTaskSuspend(DemoTask1);
+                    }
+                    if (DemoTask2) {
+                        vTaskResume(DemoTask2);
+                    }
+                    break;
+                default:
+                    break;
+            }
+            state_changed = 0;
+        }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
 
@@ -302,22 +390,37 @@ int main(int argc, char *argv[])
         goto err_buttons_lock;
     }
 
+    if(xTaskCreate(basicSequentialStateMachine, "StateMachine",
+                      mainGENERIC_STACK_SIZE * 2, NULL,
+                      configMAX_PRIORITIES - 1, &StateMachine) != pdPASS){
+         printf("Error Statemachine");
+         goto err_statemachine;
+    }
+
     if (xTaskCreate(vEx2_2, "Button Task", mainGENERIC_STACK_SIZE * 2, NULL, 
-                    mainGENERIC_PRIORITY, &DemoTask) != pdPASS) {
+                    mainGENERIC_PRIORITY + 1, &DemoTask1) != pdPASS) {
+        printf("Error DemoTask1");
         goto err_buttontask;
     }
-    // if (xTaskCreate(basicSequentialStateMachine, "StateMachine",
-    //                 mainGENERIC_STACK_SIZE * 2, NULL,
-    //                 mainGENERIC_PRIORITY + 1, &StateMachine) != pdPASS) {
-    //     goto err_statemachine;  
-    // }
+    if(xTaskCreate(vDemoTask2, "Demo Task 2",
+                     mainGENERIC_STACK_SIZE * 2, NULL,
+                     mainGENERIC_PRIORITY, &DemoTask2) != pdPASS){
+        printf("Error DemoTask2");         
+    }
+
+
+    vTaskSuspend(DemoTask1);
+    vTaskSuspend(DemoTask2);   
+
+
+
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
 err_buttontask:
     vSemaphoreDelete(buttons.lock);
-    vTaskDelete(DemoTask);
+    vTaskDelete(DemoTask1);
 err_statemachine:
     vTaskDelete(StateMachine);
 err_buttons_lock:
