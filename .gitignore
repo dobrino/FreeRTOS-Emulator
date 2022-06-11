@@ -6,6 +6,7 @@ tidy.fixes
 
 #debugging script
 run.sh
+trash.c
 
 # Documentation
 docs/html
