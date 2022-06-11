@@ -29,6 +29,7 @@
 
 #define STATE_ONE 0
 #define STATE_TWO 1
+#define STATE_THREE 2
 
 #define NEXT_TASK 0
 #define PREV_TASK 1
@@ -75,6 +76,7 @@ static TaskHandle_t UDPDemoTask = NULL;
 static TaskHandle_t TCPDemoTask = NULL;
 static TaskHandle_t MQDemoTask = NULL;
 static TaskHandle_t DemoSendTask = NULL;
+static TaskHandle_t Exercise3 = NULL;
 
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
@@ -169,6 +171,9 @@ initial_state:
                     if (DemoTask1) {
                         vTaskResume(DemoTask1);
                     }
+                    if(Exercise3){
+                        vTaskSuspend(Exercise3);
+                    }
                     break;
                 case STATE_TWO:
                     if (DemoTask1) {
@@ -177,7 +182,20 @@ initial_state:
                     if (DemoTask2) {
                         vTaskResume(DemoTask2);
                     }
+                    if(Exercise3){
+                        vTaskSuspend(Exercise3);
+                    }
                     break;
+                case STATE_THREE:
+                    if (DemoTask1) {
+                        vTaskSuspend(DemoTask1);
+                    }
+                    if (DemoTask2) {
+                        vTaskSuspend(DemoTask2);
+                    }
+                    if(Exercise3){
+                        vTaskResume(Exercise3);
+                    }
                 default:
                     break;
             }
@@ -505,13 +523,60 @@ void vTCPDemoTask(void *pvParameters)
     }
 }
 
+
+
 void vDemoTask1(void *pvParameters)
 {
-    
+    static coord_t circ_coord;
+    circ_coord.x = 150;
+    circ_coord.y = 250;
+    //TRIANGLE
+    static coord_t tria_coord[3];
+    tria_coord[0].x = 300;
+    tria_coord[0].y = 200;
+    tria_coord[1].x = 250;
+    tria_coord[1].y = 300;
+    tria_coord[2].x = 350; 
+    tria_coord[2].y = 300;
+    //SQAURE
+    static coord_t squ_coord;
+    squ_coord.x = 400;
+    squ_coord.y = 200;
+    const int squ_width = 100;
+    const int squ_height = 100;
+
+    //EXECUTION COUNTER
+    int exec_counter = 0;
+    const float rot_speed = 0.01;
+    const int rot_radius = 150;
+
+    //TEXT
+    const char subtitle_bottom[] = "Max Herbst, der High-Performer";
+    const char subtitle_top[] = "PYX rules";
+    static coord_t sub_top_coord;
+    static coord_t sub_bottom_coord;
+    sub_top_coord.x = 0;
+    sub_top_coord.y = 100;
+    sub_bottom_coord.x = 150;
+    sub_bottom_coord.y = 400;
+
+    //BUTTONS COUNTER
+    int a_counter = 0;
+    int b_counter = 0;
+    int c_counter = 0;
+    int d_counter = 0;
+    int a_counter_en = 0;
+    int b_counter_en = 0;
+    int c_counter_en = 0;
+    int d_counter_en = 0;
+    // MOUSE COORD
+    coord_t mouse_coord;
+    mouse_coord.x = 0;
+    mouse_coord.y = 0;
     TickType_t xLastFrameTime = xTaskGetTickCount();
 
     while (1) {
-        if (DrawSignal)
+        if (DrawSignal){
             if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
                 pdTRUE) {
                 tumEventFetchEvents(FETCH_EVENT_BLOCK |
@@ -528,9 +593,96 @@ void vDemoTask1(void *pvParameters)
 
                 xSemaphoreGive(ScreenLock);
 
-                // Get input and check for state change
-                vCheckStateInput();
+                //EXERCISE 2.1//
+                //DRAWING OBJECTS//
+                //CIRCLE
+                tumDrawCircle(circ_coord.x,circ_coord.y,50,0x00FF00);
+                
+                //TRIANLGE
+                tumDrawTriangle(tria_coord,0xFF0000);//use pointer here 
+                //Triangle is used as the center for all the other objects
+                //SQUARE
+                tumDrawFilledBox(squ_coord.x,squ_coord.y,squ_width, squ_height,0x0000FF);
+
+                //TEXT
+                tumDrawText(subtitle_bottom,sub_bottom_coord.x, sub_bottom_coord.y, 0x000000);
+                tumDrawText(subtitle_top,sub_top_coord.x, sub_top_coord.y, 0x000000);
+
+                //MOTION//
+                exec_counter +=1;
+                //movement with mouse:
+                tria_coord[0].x = mouse_coord.x;
+                tria_coord[0].y = mouse_coord.y - 50;
+                tria_coord[1].x = mouse_coord.x + 50;
+                tria_coord[1].y = mouse_coord.y + 50;
+                tria_coord[2].x = mouse_coord.x - 50; 
+                tria_coord[2].y = mouse_coord.y + 50;
+
+                // CIRCLE
+                circ_coord.x =  tria_coord[0].x + rot_radius * cos(rot_speed * exec_counter + M_PI); //triangle center + radius * rotation(wt)
+                circ_coord.y = (tria_coord[0].y + tria_coord[1].y)/2 + rot_radius * sin(rot_speed * exec_counter); //triangle center + radius * rotation(wt)
+
+                //FILLED BOX
+                squ_coord.x =  -squ_width/2 + tria_coord[0].x + rot_radius * cos(rot_speed * exec_counter); //offset to squre center + triangle center + radius * rotation(wt)
+                squ_coord.y = -squ_width/2 + (tria_coord[0].y + tria_coord[1].y)/2 + rot_radius * sin(rot_speed * exec_counter + M_PI); //offset to squre center + triangle center + radius * rotation(wt)
+                
+                //SUBTITLE TOP
+                sub_top_coord.x = mouse_coord.x * sin(rot_speed * exec_counter); //screen center + sin motion, left <-> right
+                sub_top_coord.y = mouse_coord.y - 100;
+
+                //SUBTITLE BOTTOM 
+                sub_bottom_coord.x = mouse_coord.x - 150;
+                sub_bottom_coord.y = mouse_coord.y + 150;
+
+                //EXERCISE 2.2//
+                if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+                    if (buttons.buttons[KEYCODE(A)]) { // Equiv to SDL_SCANCODE_A
+                        buttons.buttons[KEYCODE(A)] = 0;
+                        a_counter += 1;
+                        printf("a was pressed %d times \n", a_counter); 
+                    }
+                    if (buttons.buttons[KEYCODE(B)]) { // Equiv to SDL_SCANCODE_B
+                        buttons.buttons[KEYCODE(B)] = 0;
+                        b_counter += 1;
+                        printf("b was pressed %d times \n", b_counter);
+                    }
+                    if (buttons.buttons[KEYCODE(C)]) { // Equiv to SDL_SCANCODE_C
+                        buttons.buttons[KEYCODE(C)] = 0;
+                        c_counter += 1;
+                        printf("c was pressed %d times \n", c_counter);
+                    }
+                    if (buttons.buttons[KEYCODE(D)]) { // Equiv to SDL_SCANCODE_D
+                        buttons.buttons[KEYCODE(D)] = 0;
+                        d_counter += 1;
+                        printf("d was pressed %d times \n", d_counter);
+                    }
+                    if (tumEventGetMouseLeft()) { //Mouse Click Right
+                        //buttons.buttons[KEYCODE(D)] = 0;
+                        a_counter = 0;
+                        b_counter = 0;
+                        c_counter = 0;
+                        d_counter = 0;
+                        printf("All values have been reset \n"); 
+                    }
+                    if(tumEventGetMouseX()){
+                        mouse_coord.x = tumEventGetMouseX();
+                    }
+                    if(tumEventGetMouseY()){
+                        mouse_coord.y = tumEventGetMouseY();
+                    }
+                    sprintf(subtitle_bottom,"A: %d | B: %d | C: %d | D: %d  Mouse_x : %d Mouse_y : %d", //printing string to subtitle bottom do be drawn on the bottom 
+                        a_counter,b_counter,c_counter,d_counter,mouse_coord.x,mouse_coord.y);
+
+                    xSemaphoreGive(buttons.lock);
+                }
             }
+        }
+                        
+        // Get input and check for state change
+        vCheckStateInput();
+        
+        // Basic sleep of 20 milliseconds
+        vTaskDelay((TickType_t)20);
     }
 }
 
@@ -644,6 +796,41 @@ void vDemoTask2(void *pvParameters)
     }
 }
 
+void vExercise3(void *pvParameters)
+{
+    TickType_t xLastWakeTime, prevWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    prevWakeTime = xLastWakeTime; 
+    
+    while (1) {
+        if (DrawSignal)
+            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+                pdTRUE) {
+                xLastWakeTime = xTaskGetTickCount();
+
+                xGetButtonInput(); // Update global button data
+
+                xSemaphoreTake(ScreenLock, portMAX_DELAY);
+                // Clear screen
+                checkDraw(tumDrawClear(White), __FUNCTION__);
+
+                vDrawStaticItems();
+
+                vDrawFPS();
+
+                xSemaphoreGive(ScreenLock);
+
+                // Check for state change
+                vCheckStateInput();
+
+                // Keep track of when task last ran so that you know how many ticks
+                //(in our case miliseconds) have passed so that the balls position
+                // can be updated appropriatley
+                prevWakeTime = xLastWakeTime;
+            }
+    }
+}
+
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
 
 int main(int argc, char *argv[])
@@ -742,18 +929,22 @@ int main(int argc, char *argv[])
         PRINT_TASK_ERROR("DemoTask2");
         goto err_demotask2;
     }
+    if (xTaskCreate(vDemoTask2, "vExercise3", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &Exercise3) != pdPASS) {
+        PRINT_TASK_ERROR("Exercise3");
+    }
 
-    /** SOCKETS */
-    xTaskCreate(vUDPDemoTask, "UDPTask", mainGENERIC_STACK_SIZE * 2, NULL,
-                configMAX_PRIORITIES - 1, &UDPDemoTask);
-    xTaskCreate(vTCPDemoTask, "TCPTask", mainGENERIC_STACK_SIZE, NULL,
-                configMAX_PRIORITIES - 1, &TCPDemoTask);
+    // /** SOCKETS */
+    // xTaskCreate(vUDPDemoTask, "UDPTask", mainGENERIC_STACK_SIZE * 2, NULL,
+    //             configMAX_PRIORITIES - 1, &UDPDemoTask);
+    // xTaskCreate(vTCPDemoTask, "TCPTask", mainGENERIC_STACK_SIZE, NULL,
+    //             configMAX_PRIORITIES - 1, &TCPDemoTask);
 
-    /** POSIX MESSAGE QUEUES */
-    xTaskCreate(vMQDemoTask, "MQTask", mainGENERIC_STACK_SIZE * 2, NULL,
-                configMAX_PRIORITIES - 1, &MQDemoTask);
-    xTaskCreate(vDemoSendTask, "SendTask", mainGENERIC_STACK_SIZE * 2, NULL,
-                configMAX_PRIORITIES - 1, &DemoSendTask);
+    // /** POSIX MESSAGE QUEUES */
+    // xTaskCreate(vMQDemoTask, "MQTask", mainGENERIC_STACK_SIZE * 2, NULL,
+    //             configMAX_PRIORITIES - 1, &MQDemoTask);
+    // xTaskCreate(vDemoSendTask, "SendTask", mainGENERIC_STACK_SIZE * 2, NULL,
+    //             configMAX_PRIORITIES - 1, &DemoSendTask);
 
     vTaskSuspend(DemoTask1);
     vTaskSuspend(DemoTask2);
