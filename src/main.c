@@ -806,8 +806,8 @@ void vCircle1(void *pvParameters)
     TickType_t xLastWakeTime, prevWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime;
-
-
+    
+    char circle_en = NULL;
 
     prints("Task 1 init'd\n");
 
@@ -825,8 +825,14 @@ void vCircle1(void *pvParameters)
 
                 vDrawStaticItems();
 
-                // Draw the walls
-                tumDrawCircle(400,300,100,0x00FF00);
+                if(circle_en){
+                    tumDrawCircle(400,300,100,0x00FF00);
+                    circle_en = NULL;
+                }
+                else{
+                    circle_en = 1;
+                }
+                
                 // Draw FPS in lower right corner
                 vDrawFPS();
 
@@ -839,10 +845,10 @@ void vCircle1(void *pvParameters)
                 //(in our case miliseconds) have passed so that the balls position
                 // can be updated appropriatley
                 prevWakeTime = xLastWakeTime;
+                vTaskDelay(pdMS_TO_TICKS(500));
             }
     }
 }
-
 
 
 void vExercise3(void *pvParameters)
