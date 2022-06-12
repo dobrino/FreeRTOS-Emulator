@@ -198,24 +198,6 @@ initial_state:
                     printf("We are in Statge 1");
                     break;
                 case STATE_TWO:
-                    if (DemoTask1) {
-                        vTaskSuspend(DemoTask1);
-                    }
-                    if (DemoTask2) {
-                        vTaskResume(DemoTask2);
-                    }
-                    if(Circle1){
-                        vTaskSuspend(Circle1);
-                    }
-                    if(Circle2){
-                        vTaskSuspend(Circle2);
-                    }
-                    if(Exercise3){
-                        vTaskSuspend(Exercise3);
-                    }
-                    printf("We are in Statge 2");
-                    break;
-                case STATE_THREE:
                     printf("We are in Statge 3");
                     if (DemoTask1) {
                         vTaskSuspend(DemoTask1);
@@ -234,6 +216,25 @@ initial_state:
                     }
                     printf("We are in State 3");
                     break;
+                case STATE_THREE:
+                    if (DemoTask1) {
+                        vTaskSuspend(DemoTask1);
+                    }
+                    if (DemoTask2) {
+                        vTaskResume(DemoTask2);
+                    }
+                    if(Circle1){
+                        vTaskSuspend(Circle1);
+                    }
+                    if(Circle2){
+                        vTaskSuspend(Circle2);
+                    }
+                    if(Exercise3){
+                        vTaskSuspend(Exercise3);
+                    }
+                    printf("We are in Statge 2");
+                    break;
+  
                 default:
                     break;
             }
@@ -727,7 +728,7 @@ void playBallSound(void *args)
 }
 
 
-void vDemoTask2(void *pvParameters)
+void vExercise4(void *pvParameters)
 {   
     TickType_t xLastWakeTime, prevWakeTime;
     xLastWakeTime = xTaskGetTickCount();
@@ -1008,6 +1009,8 @@ void vExercise3(void *pvParameters)
     }
 }
 
+
+
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
 
 int main(int argc, char *argv[])
@@ -1101,7 +1104,7 @@ int main(int argc, char *argv[])
         PRINT_TASK_ERROR("DemoTask1");
         goto err_demotask1;
     }
-    if (xTaskCreate(vDemoTask2, "DemoTask2", mainGENERIC_STACK_SIZE * 2,
+    if (xTaskCreate(vExercise4, "DemoTask2", mainGENERIC_STACK_SIZE * 2,
                     NULL, mainGENERIC_PRIORITY, &DemoTask2) != pdPASS) {
         PRINT_TASK_ERROR("DemoTask2");
         goto err_demotask2;
