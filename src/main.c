@@ -85,11 +85,16 @@ static TaskHandle_t RandTask2 = NULL;
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
+static SemaphoreHandle_t counterlock  = NULL;
 
 static image_handle_t logo_image = NULL;
 
 static int task1_counter = 0;
 static int task2_counter = 0;
+static SemaphoreHandle_t Task1Trigger=NULL;
+
+static char circle1_en = NULL;
+static char circle2_en = NULL;
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -184,6 +189,9 @@ initial_state:
                     if(Circle2){
                         vTaskSuspend(Circle2);
                     }
+                    if(Exercise3){
+                        vTaskSuspend(Exercise3);
+                    }
                     printf("We are in Statge 1");
                     break;
                 case STATE_TWO:
@@ -198,6 +206,9 @@ initial_state:
                     }
                     if(Circle2){
                         vTaskSuspend(Circle2);
+                    }
+                    if(Exercise3){
+                        vTaskSuspend(Exercise3);
                     }
                     printf("We are in Statge 2");
                     break;
@@ -214,6 +225,9 @@ initial_state:
                     }
                     if(Circle2){
                         vTaskResume(Circle2);
+                    }
+                    if(Exercise3){
+                        vTaskResume(Exercise3);
                     }
                     printf("We are in State 3");
                     break;
@@ -821,49 +835,20 @@ void vCircle1(void *pvParameters)
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime;
     
-    char circle_en = NULL;
+    
 
     prints("Task 1 init'd\n");
 
     while (1) {
-        if (DrawSignal)
-            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
-                pdTRUE) {
-                xLastWakeTime = xTaskGetTickCount();
+        if(circle1_en){
+            circle1_en = NULL;
+        }
+        else{
+            circle1_en = 1;
+        }
 
-                xGetButtonInput(); // Update global button data
-
-                xSemaphoreTake(ScreenLock, portMAX_DELAY);
-                // Clear screen
-                checkDraw(tumDrawClear(White), __FUNCTION__);
-
-                vDrawStaticItems();
-
-                if(circle_en){
-                    tumDrawCircle(400,300,100,0x00FF00);
-                    circle_en = NULL;
-                }
-                else{
-                    circle_en = 1;
-                }
-                
-                // Draw FPS in lower right corner
-                vDrawFPS();
-
-                xSemaphoreGive(ScreenLock);
-
-                // Check for state change
-                vCheckStateInput();
-
-
-                //Controlling RandTask1 and RandTask2
-
-                // Keep track of when task last ran so that you know how many ticks
-                //(in our case miliseconds) have passed so that the balls position
-                // can be updated appropriatley
-                prevWakeTime = xLastWakeTime;
-                vTaskDelay(pdMS_TO_TICKS(20));
-            }
+        vTaskDelay(pdMS_TO_TICKS(500));
+            
     }
 }
 void vCircle2(void *pvParameters)
@@ -877,63 +862,56 @@ void vCircle2(void *pvParameters)
     prints("Task 1 init'd\n");
 
     while (1) {
-        if (DrawSignal)
-            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
-                pdTRUE) {
-                xLastWakeTime = xTaskGetTickCount();
+        if(circle2_en){
+            
+            circle2_en = NULL;
+        }
+        else{
+            circle2_en = 1;
+        }
 
-                xGetButtonInput(); // Update global button data
-
-                xSemaphoreTake(ScreenLock, portMAX_DELAY);
-                // Clear screen
-                checkDraw(tumDrawClear(White), __FUNCTION__);
-
-                vDrawStaticItems();
-
-                if(circle_en){
-                    tumDrawCircle(200,300,100,0x0000FFe);
-                    circle_en = NULL;
-                }
-                else{
-                    circle_en = 1;
-                }
-                
-                // Draw FPS in lower right corner
-                vDrawFPS();
-
-                xSemaphoreGive(ScreenLock);
-
-                // Check for state change
-                vCheckStateInput();
-
-                // Keep track of when task last ran so that you know how many ticks
-                //(in our case miliseconds) have passed so that the balls position
-                // can be updated appropriatley
-                prevWakeTime = xLastWakeTime;
-                vTaskDelay(pdMS_TO_TICKS(1000));
-            }
+        vTaskDelay(pdMS_TO_TICKS(1000));
+            
     }
 }
 
 
 void vRandTask1(void *pvParameters)
-{    
+{   
+
     char text[100];
     while (1) {
-        sprintf(text, "this Task was triggerd %d times", task1_counter);
-        tumDrawText(text,400,400,0xFF0000);
-        vTaskSuspend(RandTask1);
+        if(Task1Trigger){ 
+            if (xSemaphoreTake(Task1Trigger,portMAX_DELAY) == pdTRUE){
+                if (xSemaphoreTake(counterlock,portMAX_DELAY) == pdTRUE){ 
+                    task1_counter++;
+                    printf("Task1 triggerd");
+                    xSemaphoreGive(counterlock);
+                }          
+            }
+        }    
     }
 } 
 
-
+#define LBI 0x001
 void vRandTask2(void *pvParameters)
 {    
-
+    uint32_t NotificationBuffer;
+    
     while (1) {
-        task2_counter++;
-        vTaskSuspend(RandTask2);
-        printf("%d",task2_counter);
+        NotificationBuffer = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if (NotificationBuffer & LBI){
+            task2_counter++;
+        }
+    }
+}
+
+void vTimedreset(void *pvParameters)
+{    
+    
+    
+    while (1) {
+        
     }
 }
 
@@ -943,6 +921,7 @@ void vExercise3(void *pvParameters)
     TickType_t xLastWakeTime, prevWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime; 
+    char str[100];
     
     while (1) {
         if (DrawSignal)
@@ -951,15 +930,41 @@ void vExercise3(void *pvParameters)
                 xLastWakeTime = xTaskGetTickCount();
 
                 xGetButtonInput(); // Update global button data
-
                 xSemaphoreTake(ScreenLock, portMAX_DELAY);
                 // Clear screen
                 checkDraw(tumDrawClear(White), __FUNCTION__);
 
                 vDrawStaticItems();
 
-                vDrawFPS();
+                if(circle1_en){
+                    tumDrawCircle(400,300,100,0x00FF00);
+                }
+                if(circle2_en){
+                    tumDrawCircle(200,300,100,0xFF00FF);
+                }
 
+                //3_2_3
+                if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+                    if (buttons.buttons[KEYCODE(A)]) { // Equiv to SDL_SCANCODE_A
+                        buttons.buttons[KEYCODE(A)] = 0;
+                        printf("a was pressed\n"); 
+                        xSemaphoreGive(Task1Trigger);
+                    }
+                    if (buttons.buttons[KEYCODE(S)]) { // Equiv to SDL_SCANCODE_A
+                        buttons.buttons[KEYCODE(S)] = 0;
+                        printf("s was pressed\n"); 
+                        xTaskNotify(RandTask2,LBI,eSetBits);
+                    }
+                    xSemaphoreGive(buttons.lock);
+                }
+
+                sprintf(str, "Task 1 was triggered %d times.", task1_counter);
+                tumDrawText(str, 20,20,0x000000);
+                
+                sprintf(str, "Task 2 was triggered %d times.", task2_counter);
+                tumDrawText(str, 20,50,0x000000);
+                vDrawFPS();
+                xSemaphoreGive(buttons.lock);
                 xSemaphoreGive(ScreenLock);
 
                 // Check for state change
@@ -1080,7 +1085,13 @@ int main(int argc, char *argv[])
                     NULL, mainGENERIC_PRIORITY, &Circle2) != pdPASS) {
         PRINT_TASK_ERROR("DemoTask2");
         goto err_circle1;
-    }    
+    }
+    if (xTaskCreate(vExercise3, "Exercise3", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY+5, &Exercise3) != pdPASS) {
+        PRINT_TASK_ERROR("DemoTask2");
+    }      
+    Task1Trigger = xSemaphoreCreateBinary();
+    counterlock = xSemaphoreCreateBinary();
     if (xTaskCreate(vRandTask1, "RandTask1", mainGENERIC_STACK_SIZE * 2,
                     NULL, mainGENERIC_PRIORITY+1, &RandTask1) != pdPASS) {
         PRINT_TASK_ERROR("DemoTask2");
@@ -1108,7 +1119,7 @@ int main(int argc, char *argv[])
     vTaskSuspend(DemoTask1);
     vTaskSuspend(DemoTask2);
     vTaskSuspend(Circle1);
-    vTaskSuspend(RandTask1);
+    //vTaskSuspend(RandTask1);
 
     tumFUtilPrintTaskStateList();
 
