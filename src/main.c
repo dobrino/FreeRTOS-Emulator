@@ -81,6 +81,8 @@ static TaskHandle_t Circle1 = NULL;
 static TaskHandle_t Circle2 = NULL;
 static TaskHandle_t RandTask1 = NULL;
 static TaskHandle_t RandTask2 = NULL;
+static TaskHandle_t timedreset = NULL;
+static TaskHandle_t increment = NULL;
  
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
@@ -91,6 +93,7 @@ static image_handle_t logo_image = NULL;
 
 static int task1_counter = 0;
 static int task2_counter = 0;
+static int task3_counter = 0; 
 static SemaphoreHandle_t Task1Trigger=NULL;
 
 static char circle1_en = NULL;
@@ -901,20 +904,32 @@ void vRandTask2(void *pvParameters)
     while (1) {
         NotificationBuffer = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if (NotificationBuffer & LBI){
-            task2_counter++;
+            if (xSemaphoreTake(counterlock,portMAX_DELAY) == pdTRUE){ 
+                task2_counter++;
+                xSemaphoreGive(counterlock);
+            }
         }
     }
 }
 
 void vTimedreset(void *pvParameters)
 {    
-    
-    
     while (1) {
-        
+        if (xSemaphoreTake(counterlock,portMAX_DELAY) == pdTRUE){ 
+            task1_counter = 0;
+            task2_counter = 0;
+            xSemaphoreGive(counterlock);
+            vTaskDelay(15000); //waiting for 15 seconds 
+        } 
     }
 }
-
+void vIncremet(void *pvParameters)
+{    
+    while (1) {
+        task3_counter++;
+        vTaskDelay(1000); //waiting for 15 seconds 
+    }
+}
 
 void vExercise3(void *pvParameters)
 {
@@ -922,6 +937,8 @@ void vExercise3(void *pvParameters)
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime; 
     char str[100];
+    xSemaphoreGive(counterlock);
+    char toggleCounter = 1;
     
     while (1) {
         if (DrawSignal)
@@ -954,6 +971,17 @@ void vExercise3(void *pvParameters)
                         buttons.buttons[KEYCODE(S)] = 0;
                         printf("s was pressed\n"); 
                         xTaskNotify(RandTask2,LBI,eSetBits);
+                    }if (buttons.buttons[KEYCODE(C)]) { // Equiv to SDL_SCANCODE_A
+                        buttons.buttons[KEYCODE(C)] = 0;
+                        if(toggleCounter){
+                            vTaskResume(increment);
+                            toggleCounter = NULL;
+                        }
+                        else{
+                            vTaskSuspend(increment);
+                            toggleCounter = 1;
+                        }
+
                     }
                     xSemaphoreGive(buttons.lock);
                 }
@@ -963,6 +991,8 @@ void vExercise3(void *pvParameters)
                 
                 sprintf(str, "Task 2 was triggered %d times.", task2_counter);
                 tumDrawText(str, 20,50,0x000000);
+                sprintf(str, "It has beem %d seconds since the lastm incident", task3_counter);
+                tumDrawText(str, 20,80,0x000000);
                 vDrawFPS();
                 xSemaphoreGive(buttons.lock);
                 xSemaphoreGive(ScreenLock);
@@ -1102,6 +1132,17 @@ int main(int argc, char *argv[])
         PRINT_TASK_ERROR("DemoTask2");
         goto err_circle1;
     }
+    if (xTaskCreate(vTimedreset, "timed reset", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &timedreset) != pdPASS) {
+        PRINT_TASK_ERROR("DemoTask2");
+        goto err_circle1;
+    }
+    if (xTaskCreate(vIncremet, "Task Incriment", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &increment) != pdPASS) {
+        PRINT_TASK_ERROR("DemoTask2");
+        goto err_circle1;
+    }
+
 
 
     // /** SOCKETS */
@@ -1119,6 +1160,7 @@ int main(int argc, char *argv[])
     vTaskSuspend(DemoTask1);
     vTaskSuspend(DemoTask2);
     vTaskSuspend(Circle1);
+    vTaskSuspend(increment);
     //vTaskSuspend(RandTask1);
 
     tumFUtilPrintTaskStateList();
