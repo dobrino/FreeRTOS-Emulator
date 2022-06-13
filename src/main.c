@@ -271,37 +271,6 @@ void xGetButtonInput(void)
     }
 }
 
-void vDrawCaveBoundingBox(void)
-{
-    checkDraw(tumDrawFilledBox(CAVE_X - CAVE_THICKNESS,
-                               CAVE_Y - CAVE_THICKNESS,
-                               CAVE_SIZE_X + CAVE_THICKNESS * 2,
-                               CAVE_SIZE_Y + CAVE_THICKNESS * 2, TUMBlue),
-              __FUNCTION__);
-
-    checkDraw(tumDrawFilledBox(CAVE_X, CAVE_Y, CAVE_SIZE_X, CAVE_SIZE_Y,
-                               Aqua),
-              __FUNCTION__);
-}
-
-void vDrawCave(unsigned char ball_color_inverted)
-{
-    static unsigned short circlePositionX, circlePositionY;
-
-    vDrawCaveBoundingBox();
-
-    circlePositionX = CAVE_X + tumEventGetMouseX() / 2;
-    circlePositionY = CAVE_Y + tumEventGetMouseY() / 2;
-
-    if (ball_color_inverted)
-        checkDraw(tumDrawCircle(circlePositionX, circlePositionY, 20,
-                                Black),
-                  __FUNCTION__);
-    else
-        checkDraw(tumDrawCircle(circlePositionX, circlePositionY, 20,
-                                Silver),
-                  __FUNCTION__);
-}
 
 void vDrawHelpText(void)
 {
@@ -400,38 +369,6 @@ void vDrawStaticItems(void)
     vDrawLogo();
 }
 
-void vDrawButtonText(void)
-{
-    static char str[100] = { 0 };
-
-    sprintf(str, "Axis 1: %5d | Axis 2: %5d", tumEventGetMouseX(),
-            tumEventGetMouseY());
-
-    checkDraw(tumDrawText(str, 10, DEFAULT_FONT_SIZE * 0.5, Black),
-              __FUNCTION__);
-
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        sprintf(str, "W: %d | S: %d | A: %d | D: %d",
-                buttons.buttons[KEYCODE(W)],
-                buttons.buttons[KEYCODE(S)],
-                buttons.buttons[KEYCODE(A)],
-                buttons.buttons[KEYCODE(D)]);
-        xSemaphoreGive(buttons.lock);
-        checkDraw(tumDrawText(str, 10, DEFAULT_FONT_SIZE * 2, Black),
-                  __FUNCTION__);
-    }
-
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        sprintf(str, "UP: %d | DOWN: %d | LEFT: %d | RIGHT: %d",
-                buttons.buttons[KEYCODE(UP)],
-                buttons.buttons[KEYCODE(DOWN)],
-                buttons.buttons[KEYCODE(LEFT)],
-                buttons.buttons[KEYCODE(RIGHT)]);
-        xSemaphoreGive(buttons.lock);
-        checkDraw(tumDrawText(str, 10, DEFAULT_FONT_SIZE * 3.5, Black),
-                  __FUNCTION__);
-    }
-}
 
 static int vCheckStateInput(void)
 {
@@ -450,118 +387,6 @@ static int vCheckStateInput(void)
 
     return 0;
 }
-
-void UDPHandlerOne(size_t read_size, char *buffer, void *args)
-{
-    prints("UDP Recv in first handler: %s\n", buffer);
-}
-
-void UDPHandlerTwo(size_t read_size, char *buffer, void *args)
-{
-    prints("UDP Recv in second handler: %s\n", buffer);
-}
-
-void vUDPDemoTask(void *pvParameters)
-{
-    char *addr = NULL; // Loopback
-    in_port_t port = UDP_TEST_PORT_1;
-
-    udp_soc_one = aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE,
-                                   UDPHandlerOne, NULL);
-
-    prints("UDP socket opened on port %d\n", port);
-    prints("Demo UDP Socket can be tested using\n");
-    prints("*** netcat -vv localhost %d -u ***\n", port);
-
-    port = UDP_TEST_PORT_2;
-
-    udp_soc_two = aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE,
-                                   UDPHandlerTwo, NULL);
-
-    prints("UDP socket opened on port %d\n", port);
-    prints("Demo UDP Socket can be tested using\n");
-    prints("*** netcat -vv localhost %d -u ***\n", port);
-
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
-void MQHandlerOne(size_t read_size, char *buffer, void *args)
-{
-    prints("MQ Recv in first handler: %s\n", buffer);
-}
-
-void MQHanderTwo(size_t read_size, char *buffer, void *args)
-{
-    prints("MQ Recv in second handler: %s\n", buffer);
-}
-
-void vDemoSendTask(void *pvParameters)
-{
-    static char *test_str_1 = "UDP test 1";
-    static char *test_str_2 = "UDP test 2";
-    static char *test_str_3 = "TCP test";
-
-    while (1) {
-        prints("*****TICK******\n");
-        if (mq_one) {
-            aIOMessageQueuePut(mq_one_name, "Hello MQ one");
-        }
-        if (mq_two) {
-            aIOMessageQueuePut(mq_two_name, "Hello MQ two");
-        }
-
-        if (udp_soc_one)
-            aIOSocketPut(UDP, NULL, UDP_TEST_PORT_1, test_str_1,
-                         strlen(test_str_1));
-        if (udp_soc_two)
-            aIOSocketPut(UDP, NULL, UDP_TEST_PORT_2, test_str_2,
-                         strlen(test_str_2));
-        if (tcp_soc)
-            aIOSocketPut(TCP, NULL, TCP_TEST_PORT, test_str_3,
-                         strlen(test_str_3));
-
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
-void vMQDemoTask(void *pvParameters)
-{
-    mq_one = aIOOpenMessageQueue(mq_one_name, MSG_QUEUE_MAX_MSG_COUNT,
-                                 MSG_QUEUE_BUFFER_SIZE, MQHandlerOne, NULL);
-    mq_two = aIOOpenMessageQueue(mq_two_name, MSG_QUEUE_MAX_MSG_COUNT,
-                                 MSG_QUEUE_BUFFER_SIZE, MQHanderTwo, NULL);
-
-    while (1)
-
-    {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
-void TCPHandler(size_t read_size, char *buffer, void *args)
-{
-    prints("TCP Recv: %s\n", buffer);
-}
-
-void vTCPDemoTask(void *pvParameters)
-{
-    char *addr = NULL; // Loopback
-    in_port_t port = TCP_TEST_PORT;
-
-    tcp_soc =
-        aIOOpenTCPSocket(addr, port, TCP_BUFFER_SIZE, TCPHandler, NULL);
-
-    prints("TCP socket opened on port %d\n", port);
-    prints("Demo TCP socket can be tested using\n");
-    prints("*** netcat -vv localhost %d ***\n", port);
-
-    while (1) {
-        vTaskDelay(10);
-    }
-}
-
 
 
 void vExercise2(void *pvParameters)
@@ -720,11 +545,6 @@ void vExercise2(void *pvParameters)
         xSemaphoreGive(ScreenLock);
         vCheckStateInput();
     }
-}
-
-void playBallSound(void *args)
-{
-    tumSoundPlaySample(a3);
 }
 
 
