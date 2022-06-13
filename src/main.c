@@ -687,6 +687,30 @@ void vIncremet(void *pvParameters)
         vTaskDelay(1000); //waiting for 15 seconds 
     }
 }
+void v4_1(void *pvParameters)
+{    
+    while (1) {
+        vTaskDelay(1000); //waiting for 15 seconds 
+    }
+}
+void v4_2(void *pvParameters)
+{    
+    while (1) {
+        vTaskDelay(1000); //waiting for 15 seconds 
+    }
+}
+void v4_3(void *pvParameters)
+{    
+    while (1) {
+        vTaskDelay(1000); //waiting for 15 seconds 
+    }
+}
+void v4_4(void *pvParameters)
+{    
+    while (1) {
+        vTaskDelay(1000); //waiting for 15 seconds 
+    }
+}
 
 void vExercise3(void *pvParameters)
 {
