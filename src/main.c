@@ -564,7 +564,7 @@ void vTCPDemoTask(void *pvParameters)
 
 
 
-void vDemoTask1(void *pvParameters)
+void vExercise2(void *pvParameters)
 {
     static coord_t circ_coord;
     circ_coord.x = 150;
@@ -734,29 +734,6 @@ void vExercise4(void *pvParameters)
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime;
 
-    ball_t *my_ball = createBall(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, Black,
-                                 20, 1000, &playBallSound, NULL);
-    setBallSpeed(my_ball, 250, 250, 0, SET_BALL_SPEED_AXES);
-
-    // Left wall
-    wall_t *left_wall =
-        createWall(CAVE_X - CAVE_THICKNESS, CAVE_Y, CAVE_THICKNESS,
-                   CAVE_SIZE_Y, 0.2, Red, NULL, NULL);
-    // Right wall
-    wall_t *right_wall =
-        createWall(CAVE_X + CAVE_SIZE_X, CAVE_Y, CAVE_THICKNESS,
-                   CAVE_SIZE_Y, 0.2, Red, NULL, NULL);
-    // Top wall
-    wall_t *top_wall =
-        createWall(CAVE_X - CAVE_THICKNESS, CAVE_Y - CAVE_THICKNESS,
-                   CAVE_SIZE_X + CAVE_THICKNESS * 2, CAVE_THICKNESS,
-                   0.2, Blue, NULL, NULL);
-    // Bottom wall
-    wall_t *bottom_wall =
-        createWall(CAVE_X - CAVE_THICKNESS, CAVE_Y + CAVE_SIZE_Y,
-                   CAVE_SIZE_X + CAVE_THICKNESS * 2, CAVE_THICKNESS,
-                   0.2, Blue, NULL, NULL);
-    unsigned char collisions = 0;
 
     prints("Task 1 init'd\n");
 
@@ -774,48 +751,7 @@ void vExercise4(void *pvParameters)
 
                 vDrawStaticItems();
 
-                // Draw the walls
-                checkDraw(tumDrawFilledBox(
-                              left_wall->x1, left_wall->y1,
-                              left_wall->w, left_wall->h,
-                              left_wall->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(right_wall->x1,
-                                           right_wall->y1,
-                                           right_wall->w,
-                                           right_wall->h,
-                                           right_wall->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(
-                              top_wall->x1, top_wall->y1,
-                              top_wall->w, top_wall->h,
-                              top_wall->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(bottom_wall->x1,
-                                           bottom_wall->y1,
-                                           bottom_wall->w,
-                                           bottom_wall->h,
-                                           bottom_wall->colour),
-                          __FUNCTION__);
-
-                // Check if ball has made a collision
-                collisions = checkBallCollisions(my_ball, NULL,
-                                                 NULL);
-                if (collisions) {
-                    prints("Collision\n");
-                }
-
-                // Update the balls position now that possible collisions have
-                // updated its speeds
-                updateBallPosition(
-                    my_ball, xLastWakeTime - prevWakeTime);
-
-                // Draw the ball
-                checkDraw(tumDrawCircle(my_ball->x, my_ball->y,
-                                        my_ball->radius,
-                                        my_ball->colour),
-                          __FUNCTION__);
-
+            
                 // Draw FPS in lower right corner
                 vDrawFPS();
 
@@ -1099,7 +1035,7 @@ int main(int argc, char *argv[])
     }
 
     /** Demo Tasks */
-    if (xTaskCreate(vDemoTask1, "DemoTask1", mainGENERIC_STACK_SIZE * 2,
+    if (xTaskCreate(vExercise2, "DemoTask1", mainGENERIC_STACK_SIZE * 2,
                     NULL, mainGENERIC_PRIORITY, &DemoTask1) != pdPASS) {
         PRINT_TASK_ERROR("DemoTask1");
         goto err_demotask1;
