@@ -684,31 +684,31 @@ void vIncremet(void *pvParameters)
 {    
     while (1) {
         task3_counter++;
-        vTaskDelay(1000); //waiting for 15 seconds 
+        vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 void v4_1(void *pvParameters)
 {    
     while (1) {
-        vTaskDelay(1000); //waiting for 15 seconds 
+        vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 void v4_2(void *pvParameters)
 {    
     while (1) {
-        vTaskDelay(1000); //waiting for 15 seconds 
+        vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 void v4_3(void *pvParameters)
 {    
     while (1) {
-        vTaskDelay(1000); //waiting for 15 seconds 
+        vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 void v4_4(void *pvParameters)
 {    
     while (1) {
-        vTaskDelay(1000); //waiting for 15 seconds 
+        vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 
