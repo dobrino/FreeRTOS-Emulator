@@ -690,24 +690,28 @@ void vIncremet(void *pvParameters)
 void v4_1(void *pvParameters)
 {    
     while (1) {
+        printf("1");
         vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 void v4_2(void *pvParameters)
 {    
     while (1) {
+        printf("2");
         vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 void v4_3(void *pvParameters)
 {    
     while (1) {
+        printf("3");
         vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 void v4_4(void *pvParameters)
 {    
     while (1) {
+        printf("4");
         vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
