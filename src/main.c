@@ -71,7 +71,7 @@ const unsigned char prev_state_signal = PREV_TASK;
 static TaskHandle_t StateMachine = NULL;
 static TaskHandle_t BufferSwap = NULL;
 static TaskHandle_t DemoTask1 = NULL;
-static TaskHandle_t DemoTask2 = NULL;
+static TaskHandle_t Exercise4 = NULL;
 static TaskHandle_t UDPDemoTask = NULL;
 static TaskHandle_t TCPDemoTask = NULL;
 static TaskHandle_t MQDemoTask = NULL;
@@ -103,6 +103,8 @@ static SemaphoreHandle_t Task1Trigger=NULL;
 
 static char circle1_en = NULL;
 static char circle2_en = NULL;
+
+static int tickcounter = 0;
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -185,8 +187,8 @@ initial_state:
         if (state_changed) {
             switch (current_state) {
                 case STATE_ONE:
-                    if (DemoTask2) {
-                        vTaskSuspend(DemoTask2);
+                    if (Exercise4) {
+                        vTaskSuspend(Exercise4);
                     }
                     if (DemoTask1) {
                         vTaskResume(DemoTask1);
@@ -207,8 +209,8 @@ initial_state:
                     if (DemoTask1) {
                         vTaskSuspend(DemoTask1);
                     }
-                    if (DemoTask2) {
-                        vTaskSuspend(DemoTask2);
+                    if (Exercise4) {
+                        vTaskSuspend(Exercise4);
                     }
                     if(Circle1){
                         vTaskResume(Circle1);
@@ -225,8 +227,8 @@ initial_state:
                     if (DemoTask1) {
                         vTaskSuspend(DemoTask1);
                     }
-                    if (DemoTask2) {
-                        vTaskResume(DemoTask2);
+                    if (Exercise4) {
+                        vTaskResume(Exercise4);
                     }
                     if(Circle1){
                         vTaskSuspend(Circle1);
@@ -559,6 +561,11 @@ void vExercise4(void *pvParameters)
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime;
 
+    vTaskResume(Ex4_1);
+    vTaskResume(Ex4_2);
+    vTaskResume(Ex4_3);
+    vTaskResume(Ex4_4);
+
 
     prints("Task 1 init'd\n");
 
@@ -579,17 +586,21 @@ void vExercise4(void *pvParameters)
             
                 // Draw FPS in lower right corner
                 vDrawFPS();
-            
+
+                vTaskDelay(15);
+
                 vTaskSuspend(Ex4_1);
-                vTaskSuspend(Ex4_1);
-                vTaskSuspend(Ex4_1);
-                vTaskSuspend(Ex4_1);
+                vTaskSuspend(Ex4_2);
+                vTaskSuspend(Ex4_3);
+                vTaskSuspend(Ex4_4);
+
+                printf("%d\n", tickcounter);
 
                 xSemaphoreGive(ScreenLock);
 
                 // Check for state change
                 vCheckStateInput();
-
+                //vTaskDelay(10000);
                 // Keep track of when task last ran so that you know how many ticks
                 //(in our case miliseconds) have passed so that the balls position
                 // can be updated appropriatley
@@ -694,33 +705,37 @@ void vIncremet(void *pvParameters)
 {    
     while (1) {
         task3_counter++;
-        vTaskDelay(1000); //waiting for 1 seconds 
+        vTaskDelay(0); //waiting for 1 seconds 
     }
 }
 void v4_1(void *pvParameters)
 {    
     while (1) {
-        printf("1"); 
+        printf("1\n");
+        vTaskDelay(1);
     }
 }
 void v4_2(void *pvParameters)
 {    
     while (1) {
-        printf("2");
-        vTaskDelay(1); //waiting for one tick
+        printf("2\n");
+        vTaskDelay(2); //waiting for one tick
     }
 }
 void v4_3(void *pvParameters)
 {    
     while (1) {
-        printf("3");
+        printf("Tick\n");
+        printf("3\n");
+        tickcounter++;
+        vTaskDelay(1); //waiting for one tick
     }
 }
 void v4_4(void *pvParameters)
 {    
     while (1) {
-        printf("4");
-        vTaskDelay(3); //waitin for one tick 
+        printf("4\n");
+        vTaskDelay(4); //waiting for one tick 
     }
 }
 
@@ -891,13 +906,13 @@ int main(int argc, char *argv[])
     }
 
     /** Demo Tasks */
-    if (xTaskCreate(vExercise2, "DemoTask1", mainGENERIC_STACK_SIZE * 2,
+    if (xTaskCreate(vExercise2, "Exercise 2", mainGENERIC_STACK_SIZE * 2,
                     NULL, mainGENERIC_PRIORITY, &DemoTask1) != pdPASS) {
         PRINT_TASK_ERROR("DemoTask1");
         goto err_demotask1;
     }
-    if (xTaskCreate(vExercise4, "DemoTask2", mainGENERIC_STACK_SIZE * 2,
-                    NULL, mainGENERIC_PRIORITY, &DemoTask2) != pdPASS) {
+    if (xTaskCreate(vExercise4, "Exercise 4", mainGENERIC_STACK_SIZE * 2,
+                    NULL, 10, &Exercise4) != pdPASS) {
         PRINT_TASK_ERROR("DemoTask2");
         goto err_demotask2;
     }
@@ -943,23 +958,23 @@ int main(int argc, char *argv[])
         goto err_circle1;
     }
     if (xTaskCreate(v4_2, "Task Ex4.2", mainGENERIC_STACK_SIZE * 2,
-                    NULL, mainGENERIC_PRIORITY, &Ex4_2) != pdPASS) {
+                    NULL, 2, &Ex4_2) != pdPASS) {
         PRINT_TASK_ERROR("4.2");
         goto err_circle1;
     }
     if (xTaskCreate(v4_3, "Task Ex4.3", mainGENERIC_STACK_SIZE * 2,
-                    NULL, mainGENERIC_PRIORITY, &Ex4_3) != pdPASS) {
+                    NULL, 3, &Ex4_3) != pdPASS) {
         PRINT_TASK_ERROR("4.3");
         goto err_circle1;
     }
-    if (xTaskCreate(v4_4, "Task Ex4.3", mainGENERIC_STACK_SIZE * 2,
-                    NULL, mainGENERIC_PRIORITY, &Ex4_4) != pdPASS) {
+    if (xTaskCreate(v4_4, "Task Ex4.4", mainGENERIC_STACK_SIZE * 2,
+                    NULL, 4, &Ex4_4) != pdPASS) {
         PRINT_TASK_ERROR("4.4");
         goto err_circle1;
     }
 
     vTaskSuspend(DemoTask1);
-    vTaskSuspend(DemoTask2);
+    vTaskSuspend(Exercise4);
     vTaskSuspend(Circle1);
     vTaskSuspend(increment);
     vTaskSuspend(Ex4_1);
