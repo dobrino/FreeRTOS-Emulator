@@ -83,6 +83,11 @@ static TaskHandle_t RandTask1 = NULL;
 static TaskHandle_t RandTask2 = NULL;
 static TaskHandle_t timedreset = NULL;
 static TaskHandle_t increment = NULL;
+static TaskHandle_t Ex4_1 = NULL;
+static TaskHandle_t Ex4_2 = NULL;
+static TaskHandle_t Ex4_3 = NULL;
+static TaskHandle_t Ex4_4 = NULL;
+
  
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
@@ -574,6 +579,11 @@ void vExercise4(void *pvParameters)
             
                 // Draw FPS in lower right corner
                 vDrawFPS();
+            
+                vTaskSuspend(Ex4_1);
+                vTaskSuspend(Ex4_1);
+                vTaskSuspend(Ex4_1);
+                vTaskSuspend(Ex4_1);
 
                 xSemaphoreGive(ScreenLock);
 
@@ -690,29 +700,27 @@ void vIncremet(void *pvParameters)
 void v4_1(void *pvParameters)
 {    
     while (1) {
-        printf("1");
-        vTaskDelay(1000); //waiting for 1 seconds 
+        printf("1"); 
     }
 }
 void v4_2(void *pvParameters)
 {    
     while (1) {
         printf("2");
-        vTaskDelay(1000); //waiting for 1 seconds 
+        vTaskDelay(1); //waiting for one tick
     }
 }
 void v4_3(void *pvParameters)
 {    
     while (1) {
         printf("3");
-        vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
 void v4_4(void *pvParameters)
 {    
     while (1) {
         printf("4");
-        vTaskDelay(1000); //waiting for 1 seconds 
+        vTaskDelay(3); //waitin for one tick 
     }
 }
 
@@ -929,25 +937,35 @@ int main(int argc, char *argv[])
         PRINT_TASK_ERROR("DemoTask2");
         goto err_circle1;
     }
-
-
-
-    // /** SOCKETS */
-    // xTaskCreate(vUDPDemoTask, "UDPTask", mainGENERIC_STACK_SIZE * 2, NULL,
-    //             configMAX_PRIORITIES - 1, &UDPDemoTask);
-    // xTaskCreate(vTCPDemoTask, "TCPTask", mainGENERIC_STACK_SIZE, NULL,
-    //             configMAX_PRIORITIES - 1, &TCPDemoTask);
-
-    // /** POSIX MESSAGE QUEUES */
-    // xTaskCreate(vMQDemoTask, "MQTask", mainGENERIC_STACK_SIZE * 2, NULL,
-    //             configMAX_PRIORITIES - 1, &MQDemoTask);
-    // xTaskCreate(vDemoSendTask, "SendTask", mainGENERIC_STACK_SIZE * 2, NULL,
-    //             configMAX_PRIORITIES - 1, &DemoSendTask);
+    if (xTaskCreate(v4_1, "Task Ex4.1", mainGENERIC_STACK_SIZE * 2,
+                    NULL, 1, &Ex4_1) != pdPASS) {
+        PRINT_TASK_ERROR("4.1");
+        goto err_circle1;
+    }
+    if (xTaskCreate(v4_2, "Task Ex4.2", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &Ex4_2) != pdPASS) {
+        PRINT_TASK_ERROR("4.2");
+        goto err_circle1;
+    }
+    if (xTaskCreate(v4_3, "Task Ex4.3", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &Ex4_3) != pdPASS) {
+        PRINT_TASK_ERROR("4.3");
+        goto err_circle1;
+    }
+    if (xTaskCreate(v4_4, "Task Ex4.3", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &Ex4_4) != pdPASS) {
+        PRINT_TASK_ERROR("4.4");
+        goto err_circle1;
+    }
 
     vTaskSuspend(DemoTask1);
     vTaskSuspend(DemoTask2);
     vTaskSuspend(Circle1);
     vTaskSuspend(increment);
+    vTaskSuspend(Ex4_1);
+    vTaskSuspend(Ex4_2);
+    vTaskSuspend(Ex4_3);
+    vTaskSuspend(Ex4_4);
     //vTaskSuspend(RandTask1);
 
     tumFUtilPrintTaskStateList();

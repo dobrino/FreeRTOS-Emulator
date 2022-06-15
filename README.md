@@ -1,7 +1,10 @@
 # Exercise Submissions
 
-## Control and NAvigation through the screens
+## Control and Navigation through the screens
 Each Exercis is displayed on a seperate screen. Use E to switch states sequentially. Use Q to quit the program.
+
+## What is a tickles Kernel?
+
 
 ## Exercise 2
 On this screen you will see some rotating Objects, following the mouse.
