@@ -93,6 +93,7 @@ static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
 static SemaphoreHandle_t counterlock  = NULL;
+static SemaphoreHandle_t task4_3  = NULL;
 
 static image_handle_t logo_image = NULL;
 
@@ -716,14 +717,16 @@ void v4_2(void *pvParameters)
     while (1) {
         printf("2\n");
         vTaskDelay(2); //waiting for one tick
+        xSemaphoreGive(task4_3);
     }
 }
 void v4_3(void *pvParameters)
 {    
     while (1) {
-
-        printf("3\n");
-        vTaskDelay(3); //waiting for one tick
+        if(xSemaphoreTake(task4_3,portMAX_DELAY)){     
+            printf("3\n");
+            vTaskDelay(3); //waiting for one tick
+        }
     }
 }
 void v4_4(void *pvParameters)
@@ -957,6 +960,7 @@ int main(int argc, char *argv[])
         PRINT_TASK_ERROR("4.2");
         goto err_circle1;
     }
+    task4_3 = xSemaphoreCreateBinary();
     if (xTaskCreate(v4_3, "Task Ex4.3", mainGENERIC_STACK_SIZE * 2,
                     NULL, 3, &Ex4_3) != pdPASS) {
         PRINT_TASK_ERROR("4.3");
