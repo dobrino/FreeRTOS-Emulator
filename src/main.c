@@ -87,6 +87,7 @@ static TaskHandle_t Ex4_1 = NULL;
 static TaskHandle_t Ex4_2 = NULL;
 static TaskHandle_t Ex4_3 = NULL;
 static TaskHandle_t Ex4_4 = NULL;
+static TaskHandle_t TickMaster = NULL;
 
  
 static QueueHandle_t StateQueue = NULL;
@@ -106,6 +107,8 @@ static char circle1_en = NULL;
 static char circle2_en = NULL;
 
 static int tickcounter = 0;
+
+static char Ex4[16][100];
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -590,6 +593,7 @@ void vExercise4(void *pvParameters)
                     vTaskResume(Ex4_2);
                     vTaskResume(Ex4_3);
                     vTaskResume(Ex4_4);
+                    vTaskResume(TickMaster);
 
                     vTaskDelay(15);
 
@@ -597,8 +601,13 @@ void vExercise4(void *pvParameters)
                     vTaskSuspend(Ex4_2);
                     vTaskSuspend(Ex4_3);
                     vTaskSuspend(Ex4_4);
+                    vTaskSuspend(TickMaster);
+                    
                     en_tasks = NULL;
-                    printf("%d\n", tickcounter);
+                    for(int i = 1; i < 16; i++){
+                        printf("%s",Ex4[i]);
+                        printf("\n");
+                    }
                 }
                 
 
@@ -706,16 +715,14 @@ void vIncremet(void *pvParameters)
 void v4_1(void *pvParameters)
 {    
     while (1) {
-        printf("Tick\n");
-        printf("1\n");
-        tickcounter++;
+        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"1 ");
         vTaskDelay(1);
     }
 }
 void v4_2(void *pvParameters)
 {    
     while (1) {
-        printf("2\n");
+        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"2 ");
         vTaskDelay(2); //waiting for one tick
         xSemaphoreGive(task4_3);
     }
@@ -724,7 +731,7 @@ void v4_3(void *pvParameters)
 {    
     while (1) {
         if(xSemaphoreTake(task4_3,portMAX_DELAY)){     
-            printf("3\n");
+            sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"3 ");
             vTaskDelay(3); //waiting for one tick
         }
     }
@@ -732,8 +739,17 @@ void v4_3(void *pvParameters)
 void v4_4(void *pvParameters)
 {    
     while (1) {
-        printf("4\n");
+        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"4 ");
         vTaskDelay(4); //waiting for one tick 
+    }
+}
+void vTickMaster(void *pvParameters)
+{    
+    while (1) {
+        printf("Tick\n");
+        tickcounter++;
+        printf(Ex4[tickcounter]);
+        vTaskDelay(1); //waiting for one tick 
     }
 }
 
@@ -970,6 +986,10 @@ int main(int argc, char *argv[])
                     NULL, 4, &Ex4_4) != pdPASS) {
         PRINT_TASK_ERROR("4.4");
         goto err_circle1;
+    }if (xTaskCreate(vTickMaster, "Task Tick Master", mainGENERIC_STACK_SIZE * 2,
+                    NULL, 5, &TickMaster) != pdPASS) {
+        PRINT_TASK_ERROR("4.4");
+        goto err_circle1;
     }
 
     vTaskSuspend(DemoTask1);
@@ -980,6 +1000,7 @@ int main(int argc, char *argv[])
     vTaskSuspend(Ex4_2);
     vTaskSuspend(Ex4_3);
     vTaskSuspend(Ex4_4);
+    vTaskSuspend(TickMaster);
     //vTaskSuspend(RandTask1);
 
     tumFUtilPrintTaskStateList();
