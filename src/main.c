@@ -566,6 +566,7 @@ void vExercise4(void *pvParameters)
     prevWakeTime = xLastWakeTime;
 
     
+    char str[20];
 
     prints("Task 1 init'd\n");
     
@@ -603,13 +604,19 @@ void vExercise4(void *pvParameters)
                     vTaskSuspend(Ex4_4);
                     vTaskSuspend(TickMaster);
                     
+
+                    
+
                     en_tasks = NULL;
-                    for(int i = 1; i < 16; i++){
+                    for(int i = 1; i <= 15; i++){
                         printf("%s",Ex4[i]);
                         printf("\n");
                     }
                 }
-                
+                for(int i = 1; i <= 15; i++){
+                        sprintf(str,"Tick %d : %s",i,Ex4[i]);
+                        tumDrawText(str, 40, 20 + i*20,0x00FF00);
+                    }
 
                 xSemaphoreGive(ScreenLock);
 
