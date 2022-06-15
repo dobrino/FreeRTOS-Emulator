@@ -561,13 +561,11 @@ void vExercise4(void *pvParameters)
     xLastWakeTime = xTaskGetTickCount();
     prevWakeTime = xLastWakeTime;
 
-    vTaskResume(Ex4_1);
-    vTaskResume(Ex4_2);
-    vTaskResume(Ex4_3);
-    vTaskResume(Ex4_4);
-
+    
 
     prints("Task 1 init'd\n");
+    
+    char en_tasks = 1;
 
     while (1) {
         if (DrawSignal){
@@ -586,21 +584,27 @@ void vExercise4(void *pvParameters)
             
                 // Draw FPS in lower right corner
                 vDrawFPS();
+                if(en_tasks){ 
+                    vTaskResume(Ex4_1);
+                    vTaskResume(Ex4_2);
+                    vTaskResume(Ex4_3);
+                    vTaskResume(Ex4_4);
 
-                vTaskDelay(15);
+                    vTaskDelay(15);
 
-                vTaskSuspend(Ex4_1);
-                vTaskSuspend(Ex4_2);
-                vTaskSuspend(Ex4_3);
-                vTaskSuspend(Ex4_4);
-
-                printf("%d\n", tickcounter);
+                    vTaskSuspend(Ex4_1);
+                    vTaskSuspend(Ex4_2);
+                    vTaskSuspend(Ex4_3);
+                    vTaskSuspend(Ex4_4);
+                    en_tasks = NULL;
+                    printf("%d\n", tickcounter);
+                }
+                
 
                 xSemaphoreGive(ScreenLock);
 
                 // Check for state change
                 vCheckStateInput();
-                //vTaskDelay(10000);
                 // Keep track of when task last ran so that you know how many ticks
                 //(in our case miliseconds) have passed so that the balls position
                 // can be updated appropriatley
@@ -612,12 +616,6 @@ void vExercise4(void *pvParameters)
 
 void vCircle1(void *pvParameters)
 {
-    TickType_t xLastWakeTime, prevWakeTime;
-    xLastWakeTime = xTaskGetTickCount();
-    prevWakeTime = xLastWakeTime;
-    
-    
-
     prints("Task 1 init'd\n");
 
     while (1) {
@@ -634,10 +632,6 @@ void vCircle1(void *pvParameters)
 }
 void vCircle2(void *pvParameters)
 {
-    TickType_t xLastWakeTime, prevWakeTime;
-    xLastWakeTime = xTaskGetTickCount();
-    prevWakeTime = xLastWakeTime;
-    
     char circle_en = NULL;
 
     prints("Task 1 init'd\n");
@@ -711,7 +705,9 @@ void vIncremet(void *pvParameters)
 void v4_1(void *pvParameters)
 {    
     while (1) {
+        printf("Tick\n");
         printf("1\n");
+        tickcounter++;
         vTaskDelay(1);
     }
 }
@@ -725,10 +721,9 @@ void v4_2(void *pvParameters)
 void v4_3(void *pvParameters)
 {    
     while (1) {
-        printf("Tick\n");
+
         printf("3\n");
-        tickcounter++;
-        vTaskDelay(1); //waiting for one tick
+        vTaskDelay(3); //waiting for one tick
     }
 }
 void v4_4(void *pvParameters)
