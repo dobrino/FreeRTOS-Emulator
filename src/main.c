@@ -570,7 +570,7 @@ void vExercise4(void *pvParameters)
 
     prints("Task 1 init'd\n");
     
-    char en_tasks = 1;
+    char en_tasks = 1; //signal that enables the run of exercise 4
 
     while (1) {
         if (DrawSignal){
@@ -589,6 +589,8 @@ void vExercise4(void *pvParameters)
             
                 // Draw FPS in lower right corner
                 vDrawFPS();
+
+                //start, stop and timing the Tasks of Exercise 4
                 if(en_tasks){ 
                     vTaskResume(Ex4_1);
                     vTaskResume(Ex4_2);
@@ -613,6 +615,7 @@ void vExercise4(void *pvParameters)
                         printf("\n");
                     }
                 }
+                //printing out the results of Exercise 4
                 for(int i = 1; i <= 15; i++){
                         sprintf(str,"Tick %d : %s",i,Ex4[i]);
                         tumDrawText(str, 40, 20 + i*20,0x00FF00);
@@ -636,11 +639,12 @@ void vCircle1(void *pvParameters)
     prints("Task 1 init'd\n");
 
     while (1) {
+        //toggling the flag for drawing the circle in Ex3 Task
         if(circle1_en){
             circle1_en = NULL;
         }
         else{
-            circle1_en = 1;
+            circle1_en = 1; 
         }
 
         vTaskDelay(pdMS_TO_TICKS(500));
@@ -653,6 +657,7 @@ void vCircle2(void *pvParameters)
 
     prints("Task 1 init'd\n");
 
+    //toggling the flag for drawing the circle in Ex3 Task
     while (1) {
         if(circle2_en){
             
@@ -667,7 +672,7 @@ void vCircle2(void *pvParameters)
     }
 }
 
-
+// this is a random task to be triggered, it will count the number of triggers
 void vRandTask1(void *pvParameters)
 {   
 
@@ -685,6 +690,7 @@ void vRandTask1(void *pvParameters)
     }
 } 
 
+// this is a random task to be triggered, it will count the number of triggers
 #define LBI 0x001
 void vRandTask2(void *pvParameters)
 {    
@@ -700,7 +706,7 @@ void vRandTask2(void *pvParameters)
         }
     }
 }
-
+//this Task resets all values in Exercise 3 after 15 seconds
 void vTimedreset(void *pvParameters)
 {    
     while (1) {
@@ -712,13 +718,17 @@ void vTimedreset(void *pvParameters)
         } 
     }
 }
+
+//this task will count the seconds when activated  
 void vIncremet(void *pvParameters)
 {    
     while (1) {
         task3_counter++;
-        vTaskDelay(0); //waiting for 1 seconds 
+        vTaskDelay(1000); //waiting for 1 seconds 
     }
 }
+
+//Exercise 4 small tasks
 void v4_1(void *pvParameters)
 {    
     while (1) {
