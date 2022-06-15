@@ -706,69 +706,6 @@ void vRandTask2(void *pvParameters)
         }
     }
 }
-//this Task resets all values in Exercise 3 after 15 seconds
-void vTimedreset(void *pvParameters)
-{    
-    while (1) {
-        if (xSemaphoreTake(counterlock,portMAX_DELAY) == pdTRUE){ 
-            task1_counter = 0;
-            task2_counter = 0;
-            xSemaphoreGive(counterlock);
-            vTaskDelay(15000); //waiting for 15 seconds 
-        } 
-    }
-}
-
-//this task will count the seconds when activated  
-void vIncremet(void *pvParameters)
-{    
-    while (1) {
-        task3_counter++;
-        vTaskDelay(1000); //waiting for 1 seconds 
-    }
-}
-
-//Exercise 4 small tasks
-void v4_1(void *pvParameters)
-{    
-    while (1) {
-        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"1 ");
-        vTaskDelay(1);
-    }
-}
-void v4_2(void *pvParameters)
-{    
-    while (1) {
-        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"2 ");
-        vTaskDelay(2); //waiting for one tick
-        xSemaphoreGive(task4_3);
-    }
-}
-void v4_3(void *pvParameters)
-{    
-    while (1) {
-        if(xSemaphoreTake(task4_3,portMAX_DELAY)){     
-            sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"3 ");
-            vTaskDelay(3); //waiting for one tick
-        }
-    }
-}
-void v4_4(void *pvParameters)
-{    
-    while (1) {
-        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"4 ");
-        vTaskDelay(4); //waiting for one tick 
-    }
-}
-void vTickMaster(void *pvParameters)
-{    
-    while (1) {
-        printf("Tick\n");
-        tickcounter++;
-        printf(Ex4[tickcounter]);
-        vTaskDelay(1); //waiting for one tick 
-    }
-}
 
 void vExercise3(void *pvParameters)
 {
@@ -846,6 +783,71 @@ void vExercise3(void *pvParameters)
             }
     }
 }
+//this Task resets all values in Exercise 3 after 15 seconds
+void vTimedreset(void *pvParameters)
+{    
+    while (1) {
+        if (xSemaphoreTake(counterlock,portMAX_DELAY) == pdTRUE){ 
+            task1_counter = 0;
+            task2_counter = 0;
+            xSemaphoreGive(counterlock);
+            vTaskDelay(15000); //waiting for 15 seconds 
+        } 
+    }
+}
+
+//this task will count the seconds when activated  
+void vIncremet(void *pvParameters)
+{    
+    while (1) {
+        task3_counter++;
+        vTaskDelay(1000); //waiting for 1 seconds 
+    }
+}
+
+//Exercise 4 small tasks, each task will log their output into the Ex4 Array
+void v4_1(void *pvParameters)
+{    
+    while (1) {
+        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"1 ");
+        vTaskDelay(1);
+    }
+}
+void v4_2(void *pvParameters)
+{    
+    while (1) {
+        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"2 ");
+        vTaskDelay(2); //waiting for one tick
+        xSemaphoreGive(task4_3);
+    }
+}
+void v4_3(void *pvParameters)
+{    
+    while (1) {
+        if(xSemaphoreTake(task4_3,portMAX_DELAY)){     
+            sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"3 ");
+            vTaskDelay(3); //waiting for one tick
+        }
+    }
+}
+void v4_4(void *pvParameters)
+{    
+    while (1) {
+        sprintf(Ex4[tickcounter] + strlen(Ex4[tickcounter]),"4 ");
+        vTaskDelay(4); //waiting for one tick 
+    }
+}
+//The Tick Master keeps track of the Ticks 
+void vTickMaster(void *pvParameters)
+{    
+    while (1) {
+        printf("Tick\n");
+        tickcounter++;
+        printf(Ex4[tickcounter]);
+        vTaskDelay(1); //waiting for one tick 
+    }
+}
+
 
 
 
