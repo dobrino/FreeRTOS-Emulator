@@ -15,3 +15,6 @@ On this screen you will see two circles being displayed at two different frequen
 With C you can start/stopp a counter and with A and S you can trigger a counter, that will count the button presses. This counter is being reset after 15 seconds. 
 
 ## Exercise 4
+Exercise 4 will automatically start when changing the state. At the moment there is no function implemented to repeat the Task, thats why the complete program has to be reopened. 
+When running the Exercise a few times, you will notice some random behavior with the results. The cause is yet to be discovered.
+
