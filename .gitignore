@@ -8,6 +8,9 @@ tidy.fixes
 docs/html
 docs/latex
 
+#Debugging
+run.sh
+
 doxygen_warnings.txt
 
 bin/*
