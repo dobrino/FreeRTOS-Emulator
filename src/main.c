@@ -24,7 +24,8 @@
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
 
 #define spaceship_FILEPATH "resources/images/spaceship.PNG"
-#define alien1_FILEPATH "resources/images/alien-sprite.png"
+#define alien1_1_FILEPATH "resources/images/alien1_1.png"
+#define alien1_2_FILEPATH "resources/images/alien1_2.png"
 
 // Task Hanles
 static TaskHandle_t DemoTask = NULL;
@@ -46,8 +47,14 @@ static coord_t bullet_coord;
 struct alien{
     coord_t coord;
     int alientype;
+    char alive;
 };
+
+static struct alien aliens[5][8];
+static coord_t alien_offset;
+static char direction = 1;
 static image_handle_t alien1_img_1 = NULL;
+static image_handle_t alien1_img_2 = NULL;
 
 
 typedef struct buttons_buffer {
@@ -86,11 +93,37 @@ void vShootBullet(){
     }
 }
 
+void vAlienControl(){
+    //Motion
+    if(direction){//moving to the right
+        alien_offset.x++;
+        printf("last alien position: %d\n", aliens[0][7].coord.x);
+        if(aliens[0][7].coord.x >= SCREEN_WIDTH-20){//hitting right wall
+            alien_offset.y = alien_offset.y+5; 
+            direction = NULL;
+            printf("direction changed\n");
+        }
+    }
+    if(!direction){//moving to the left 
+        printf("moving to the left\n");
+        alien_offset.x--;
+        if(alien_offset.x <= 0){//hitting left wall
+            alien_offset.y = alien_offset.y+5;
+            direction = 1;
+        }
+    }        
+}
+
 void  vControlTask(){
     
     
     spaceship_coord.x = SCREEN_WIDTH/2;
     spaceship_coord.y = SCREEN_HEIGHT - 100;
+
+    alien_offset.x = 50;
+    alien_offset.y = 50;
+
+    printf("Screen widt:%d\n", SCREEN_WIDTH);
     
     while(1){
 
@@ -123,6 +156,8 @@ void  vControlTask(){
         }
         // shooting 
         vShootBullet();
+
+        vAlienControl();
 
         vTaskDelay(20);
     }
@@ -164,7 +199,14 @@ void vDrawBullet(){
 }
 
 void vDrawAliens(){
-    
+    for(int row = 0; row < 5; row++){
+        for(int col = 0; col < 8; col++){
+            // if(aliens[row][col].alive)
+                aliens[row][col].coord.x = alien_offset.x + col*50; 
+                aliens[row][col].coord.y = alien_offset.y + row*50;
+                tumDrawLoadedImage(alien1_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
+        }
+    }
 }
 
 void vDrawObjects(){
@@ -172,6 +214,7 @@ void vDrawObjects(){
         if(bullet_active){
             vDrawBullet();
         }
+        vDrawAliens();
 }
 
 
@@ -198,7 +241,8 @@ void vDrawTask(void *pvParameters)
     life_img = tumDrawLoadImage(spaceship_FILEPATH);
     tumDrawSetLoadedImageScale(life_img, 0.05);
 
-    alien1_img_1 = tumDrawLoadImage(alien1_FILEPATH);
+    alien1_img_1 = tumDrawLoadImage(alien1_1_FILEPATH);
+    tumDrawSetLoadedImageScale(alien1_img_1,2);
 
     while (1) {
         tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
