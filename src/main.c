@@ -22,7 +22,9 @@
 
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
+
 #define spaceship_FILEPATH "resources/images/spaceship.PNG"
+#define alien1_FILEPATH "resources/images/alien-sprite.png"
 
 // Task Hanles
 static TaskHandle_t DemoTask = NULL;
@@ -39,6 +41,14 @@ static coord_t spaceship_coord;
 // Bullet
 static char bullet_active = NULL;
 static coord_t bullet_coord;
+
+// Aliens 
+struct alien{
+    coord_t coord;
+    int alientype;
+};
+static image_handle_t alien1_img_1 = NULL;
+
 
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
@@ -153,6 +163,10 @@ void vDrawBullet(){
     printf("shooting\n");
 }
 
+void vDrawAliens(){
+    
+}
+
 void vDrawObjects(){
         vDrawSpaceship();
         if(bullet_active){
@@ -183,6 +197,8 @@ void vDrawTask(void *pvParameters)
 
     life_img = tumDrawLoadImage(spaceship_FILEPATH);
     tumDrawSetLoadedImageScale(life_img, 0.05);
+
+    alien1_img_1 = tumDrawLoadImage(alien1_FILEPATH);
 
     while (1) {
         tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
