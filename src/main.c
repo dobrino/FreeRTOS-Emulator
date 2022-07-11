@@ -30,6 +30,7 @@
 // Task Hanles
 static TaskHandle_t DemoTask = NULL;
 static TaskHandle_t ControlTask = NULL;
+static TaskHandle_t AlienControlTask = NULL;
 
 // Score Board
 static int score = 0;
@@ -53,6 +54,7 @@ struct alien{
 static struct alien aliens[5][8];
 static coord_t alien_offset;
 static char direction = 1;
+static int alien_speed = 20; 
 static image_handle_t alien1_img_1 = NULL;
 static image_handle_t alien1_img_2 = NULL;
 
@@ -74,43 +76,77 @@ void xGetButtonInput(void)
 
 #define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
 
+void vCheckHit(){
+    for(int row = 0; row < 5; row++){
+        for(int col = 0; col < 8; col++){
+            if(abs((bullet_coord.x - aliens[row][col].coord.x) <= 1) && aliens[row][col].alive){
+                if(abs(bullet_coord.y - aliens[row][col].coord.y) == 0){
+                    aliens[row][col].alive = NULL;
+                    printf("hit detected with bullet coord: x: %d y: %d\n",bullet_coord.x,bullet_coord.y);
+                    bullet_active = NULL;
+                    bullet_coord.x = spaceship_coord.x;
+                    bullet_coord.y = spaceship_coord.y;
+                }
+            }
+        }
+    }
+}
+
 void vShootBullet(){
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
-                                    S)]) { //SPACE for Shoot
+                                    S)] && !bullet_active){ //S for Shoot
                 bullet_coord.y = spaceship_coord.y + 10; //offset to th front of the spacehsip
                 bullet_coord.x = spaceship_coord.x + 18; //offset to the front of the spaceship
                 bullet_active = 1;
-                printf("Bullet shot\n");
             }
             xSemaphoreGive(buttons.lock);
         }
-    if(bullet_coord.y > 0){
+    if(bullet_coord.y > 0 && bullet_active){
         bullet_coord.y = bullet_coord.y - 5;
     }
     else{
        bullet_active = NULL;
     }
+
+    vCheckHit();
 }
 
-void vAlienControl(){
-    //Motion
-    if(direction){//moving to the right
-        alien_offset.x++;
-        printf("last alien position: %d\n", aliens[0][7].coord.x);
-        if(aliens[0][7].coord.x >= SCREEN_WIDTH-20){//hitting right wall
-            alien_offset.y = alien_offset.y+5; 
-            direction = NULL;
-            printf("direction changed\n");
+void vKillalien(coord_t alien_coord){
+
+}
+
+void vAlienControlTask(){
+
+
+    alien_offset.x = 50;
+    alien_offset.y = 50;
+
+    //waking up the aliens
+    for(int row = 0; row < 5; row++){
+        for(int col = 0; col < 8; col++){
+            aliens[row][col].alive = 1;
         }
     }
-    if(!direction){//moving to the left 
-        printf("moving to the left\n");
-        alien_offset.x--;
-        if(alien_offset.x <= 0){//hitting left wall
-            alien_offset.y = alien_offset.y+5;
-            direction = 1;
+
+    while(1){
+        //Motion
+        if(direction){//moving to the right
+            alien_offset.x++;
+            if(aliens[0][7].coord.x >= SCREEN_WIDTH-20){//hitting right wall
+                alien_offset.y = alien_offset.y+alien_speed; 
+                direction = NULL;
+            }
+        }   
+        if(!direction){//moving to the left 
+            alien_offset.x--;
+            if(alien_offset.x <= 0){//hitting left wall
+                alien_offset.y = alien_offset.y+alien_speed;
+                direction = 1;
+            }
         }
+
+        vTaskDelay(200);
     }        
 }
 
@@ -120,8 +156,8 @@ void  vControlTask(){
     spaceship_coord.x = SCREEN_WIDTH/2;
     spaceship_coord.y = SCREEN_HEIGHT - 100;
 
-    alien_offset.x = 50;
-    alien_offset.y = 50;
+    bullet_coord.x = spaceship_coord.x;
+    bullet_coord.y = spaceship_coord.y;
 
     printf("Screen widt:%d\n", SCREEN_WIDTH);
     
@@ -157,8 +193,6 @@ void  vControlTask(){
         // shooting 
         vShootBullet();
 
-        vAlienControl();
-
         vTaskDelay(20);
     }
 }
@@ -181,6 +215,10 @@ void vDrawLives(){
 
 }
 
+void vDrawBarriers(){
+
+}
+
 void vDrawStatcItems(){
     vDrawScore();
     vDrawLives();
@@ -195,16 +233,16 @@ void vDrawSpaceship(){
 
 void vDrawBullet(){
     tumDrawLine(bullet_coord.x,bullet_coord.y,bullet_coord.x,bullet_coord.y - 5,1, 0x0000FF);
-    printf("shooting\n");
 }
 
 void vDrawAliens(){
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
-            // if(aliens[row][col].alive)
+            if(aliens[row][col].alive){
                 aliens[row][col].coord.x = alien_offset.x + col*50; 
                 aliens[row][col].coord.y = alien_offset.y + row*50;
                 tumDrawLoadedImage(alien1_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
+            }
         }
     }
 }
@@ -296,6 +334,11 @@ int main(int argc, char *argv[])
 
     if (xTaskCreate(vControlTask, "ControlTask", mainGENERIC_STACK_SIZE * 2, NULL,
                     mainGENERIC_PRIORITY, &ControlTask) != pdPASS) {
+        goto err_controltask;
+    }
+
+     if (xTaskCreate(vAlienControlTask, "AlienControl", mainGENERIC_STACK_SIZE * 2, NULL,
+                    mainGENERIC_PRIORITY, &AlienControlTask) != pdPASS) {
         goto err_controltask;
     }
 
