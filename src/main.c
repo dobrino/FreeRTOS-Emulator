@@ -26,6 +26,8 @@
 #define spaceship_FILEPATH "resources/images/spaceship.PNG"
 #define alien1_1_FILEPATH "resources/images/alien1_1.png"
 #define alien1_2_FILEPATH "resources/images/alien1_2.png"
+#define explosion_1_FILEPATH "resources/images/explosion1.png"
+#define explosion_2_FILEPATH "resources/images/explosion2.png"
 
 // Task Hanles
 static TaskHandle_t DemoTask = NULL;
@@ -48,7 +50,7 @@ static coord_t bullet_coord;
 struct alien{
     coord_t coord;
     int alientype;
-    char alive;
+    int alive; //1= alive, 2= hit phase 1, 3= hit phase 2, 0 = dead
 };
 
 static struct alien aliens[5][8];
@@ -57,6 +59,9 @@ static char direction = 1;
 static int alien_speed = 20; 
 static image_handle_t alien1_img_1 = NULL;
 static image_handle_t alien1_img_2 = NULL;
+static image_handle_t explosion_img_1 = NULL;
+static image_handle_t explosion_img_2 = NULL;
+
 
 
 typedef struct buttons_buffer {
@@ -79,9 +84,9 @@ void xGetButtonInput(void)
 void vCheckHit(){
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
-            if((abs(bullet_coord.x - aliens[row][col].coord.x + 10) <= 20) && aliens[row][col].alive){
+            if((abs(bullet_coord.x - aliens[row][col].coord.x - 11) <= 11) && aliens[row][col].alive){
                 if(abs(bullet_coord.y - aliens[row][col].coord.y) == 0){
-                    aliens[row][col].alive = NULL;
+                    aliens[row][col].alive = 2; 
                     printf("hit detected with bullet coord: x: %d y: %d\n",bullet_coord.x,bullet_coord.y);
                     bullet_active = NULL;
                     printf("%d = %d?\n", aliens[row][col].coord.x,bullet_coord.x);
@@ -92,6 +97,8 @@ void vCheckHit(){
         }
     }
 }
+
+
 
 void vShootBullet(){
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -113,9 +120,22 @@ void vShootBullet(){
     vCheckHit();
 }
 
-void vKillalien(coord_t alien_coord){
-
+void vKillAliens(){
+    for(int row = 0; row < 5; row++){
+        for(int col = 0; col < 8; col++){
+           if(aliens[row][col].alive == 2){
+               aliens[row][col].alive = 3;
+               //break;
+           }
+           else if(aliens[row][col].alive == 3){
+               aliens[row][col].alive = 0;
+               //break;
+           }
+        }
+    }
 }
+
+
 
 void vAlienControlTask(){
 
@@ -146,6 +166,9 @@ void vAlienControlTask(){
                 direction = 1;
             }
         }
+
+
+        vKillAliens();
 
         vTaskDelay(200);
     }        
@@ -194,6 +217,7 @@ void  vControlTask(){
         // shooting 
         vShootBullet();
 
+
         vTaskDelay(20);
     }
 }
@@ -239,13 +263,20 @@ void vDrawBullet(){
 void vDrawAliens(){
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
-            if(aliens[row][col].alive){
-                aliens[row][col].coord.x = alien_offset.x + col*50; 
-                aliens[row][col].coord.y = alien_offset.y + row*50;
-                tumDrawLoadedImage(alien1_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
+
+            switch(aliens[row][col].alive){
+
+                case 1: aliens[row][col].coord.x = alien_offset.x + col*50; 
+                        aliens[row][col].coord.y = alien_offset.y + row*50;
+                        tumDrawLoadedImage(alien1_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
+
+                case 2: tumDrawLoadedImage(explosion_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
+
+                case 3: tumDrawLoadedImage(explosion_img_2,aliens[row][col].coord.x, aliens[row][col].coord.y);
             }
         }
     }
+    tumDrawLine(aliens[4][7].coord.x,aliens[4][7].coord.y,aliens[4][7].coord.x+ 22,aliens[4][7].coord.y,5,0x0000FF);
 }
 
 void vDrawObjects(){
@@ -282,6 +313,12 @@ void vDrawTask(void *pvParameters)
 
     alien1_img_1 = tumDrawLoadImage(alien1_1_FILEPATH);
     tumDrawSetLoadedImageScale(alien1_img_1,2);
+
+    explosion_img_1 = tumDrawLoadImage(explosion_1_FILEPATH);
+    tumDrawSetLoadedImageScale(explosion_img_1,2);
+
+    explosion_img_2 = tumDrawLoadImage(explosion_2_FILEPATH);
+    tumDrawSetLoadedImageScale(explosion_img_2,2);
 
     while (1) {
         tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
