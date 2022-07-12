@@ -79,11 +79,12 @@ void xGetButtonInput(void)
 void vCheckHit(){
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
-            if(abs((bullet_coord.x - aliens[row][col].coord.x) <= 1) && aliens[row][col].alive){
+            if((abs(bullet_coord.x - aliens[row][col].coord.x + 10) <= 20) && aliens[row][col].alive){
                 if(abs(bullet_coord.y - aliens[row][col].coord.y) == 0){
                     aliens[row][col].alive = NULL;
                     printf("hit detected with bullet coord: x: %d y: %d\n",bullet_coord.x,bullet_coord.y);
                     bullet_active = NULL;
+                    printf("%d = %d?\n", aliens[row][col].coord.x,bullet_coord.x);
                     bullet_coord.x = spaceship_coord.x;
                     bullet_coord.y = spaceship_coord.y;
                 }
