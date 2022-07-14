@@ -122,7 +122,7 @@ void vShootBullet(){
         bullet_coord.y = bullet_coord.y - 5;
     }
     else{
-       bullet_active = NULL;
+    bullet_active = NULL;
     }
 
     vCheckHit();
@@ -169,26 +169,30 @@ void vAlienControlTask(){
             }
         }
     }
+    xSemaphoreGive(alien_lock);
 
     while(1){
-        //Motion
-        if(direction){//moving to the right
-            alien_offset.x = alien_offset.x + alien_speed;
-            if(aliens[0][7].coord.x >= SCREEN_WIDTH-20){//hitting right wall
-                alien_offset.y = alien_offset.y+15; 
-                direction = NULL;
+        if (xSemaphoreTake(alien_lock, 0) == pdTRUE){
+            //Motion
+            if(direction){//moving to the right
+                alien_offset.x = alien_offset.x + alien_speed;
+                if(aliens[0][7].coord.x >= SCREEN_WIDTH-20){//hitting right wall
+                    alien_offset.y = alien_offset.y+15; 
+                    direction = NULL;
+                }
+            }   
+            if(!direction){//moving to the left 
+                alien_offset.x = alien_offset.x - alien_speed;
+                if(alien_offset.x <= 0){//hitting left wall
+                    alien_offset.y = alien_offset.y+15;
+                    direction = 1;
+                }
             }
-        }   
-        if(!direction){//moving to the left 
-            alien_offset.x = alien_offset.x - alien_speed;
-            if(alien_offset.x <= 0){//hitting left wall
-                alien_offset.y = alien_offset.y+15;
-                direction = 1;
-            }
+
+
+            vKillAliens();
+            xSemaphoreGive(alien_lock);
         }
-
-
-        vKillAliens();
 
         vTaskDelay(200);
     }        
@@ -280,26 +284,29 @@ void vDrawBullet(){
 }
 
 void vDrawAliens(){
-    for(int row = 0; row < 5; row++){
-        for(int col = 0; col < 8; col++){
+    if (xSemaphoreTake(alien_lock, 0) == pdTRUE){
+        for(int row = 0; row < 5; row++){
+            for(int col = 0; col < 8; col++){
 
-            switch(aliens[row][col].alive){
-                
-                //alien alive
-                case 1: aliens[row][col].coord.x = alien_offset.x + col*50; 
-                        aliens[row][col].coord.y = alien_offset.y + row*50;
-                        tumDrawLoadedImage(alien_img[aliens[row][col].type][aliens[row][col].frame],aliens[row][col].coord.x, aliens[row][col].coord.y);
-                        break;
-                //alien explosion phase 1
-                case 2: tumDrawLoadedImage(explosion_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
-                        break;
-                //alien explosion phase 2
-                case 3: tumDrawLoadedImage(explosion_img_2,aliens[row][col].coord.x, aliens[row][col].coord.y);
-                        break;
+                switch(aliens[row][col].alive){
+                    
+                    //alien alive
+                    case 1: aliens[row][col].coord.x = alien_offset.x + col*50; 
+                            aliens[row][col].coord.y = alien_offset.y + row*50;
+                            tumDrawLoadedImage(alien_img[aliens[row][col].type][1],aliens[row][col].coord.x, aliens[row][col].coord.y);
+                            break;
+                    //alien explosion phase 1
+                    case 2: tumDrawLoadedImage(explosion_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
+                            break;
+                    //alien explosion phase 2
+                    case 3: tumDrawLoadedImage(explosion_img_2,aliens[row][col].coord.x, aliens[row][col].coord.y);
+                            break;
+                }
             }
         }
+        tumDrawLine(aliens[4][7].coord.x,aliens[4][7].coord.y,aliens[4][7].coord.x+ 22,aliens[4][7].coord.y,5,0x0000FF);
+        xSemaphoreGive(alien_lock);
     }
-    tumDrawLine(aliens[4][7].coord.x,aliens[4][7].coord.y,aliens[4][7].coord.x+ 22,aliens[4][7].coord.y,5,0x0000FF);
 }
 
 void vDrawObjects(){
@@ -414,6 +421,7 @@ int main(int argc, char *argv[])
     }
 
     alien_lock = xSemaphoreCreateMutex(); //locking mechanism 
+
     if (xTaskCreate(vAlienControlTask, "AlienControl", mainGENERIC_STACK_SIZE * 2, NULL,
                     mainGENERIC_PRIORITY, &AlienControlTask) != pdPASS) {
         goto err_controltask;
