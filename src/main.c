@@ -389,7 +389,6 @@ void vDrawAliens(){
                 }
             }
         }
-        tumDrawLine(aliens[4][7].coord.x,aliens[4][7].coord.y,aliens[4][7].coord.x+ 22,aliens[4][7].coord.y,5,0x0000FF);
         xSemaphoreGive(alien_lock);
     }
 }
