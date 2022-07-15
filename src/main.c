@@ -59,19 +59,25 @@ struct alien{
     int alive; //1= alive, 2= hit phase 1, 3= hit phase 2, 0 = dead
     int frame; //selecting frame for aliens, 2 available 
 };
-
+static int global_frame;
+static int current_last_row = 4;
 static struct alien aliens[5][8];
 
 static coord_t alien_offset;
 static char direction = 1;
 static int alien_speed = 1; 
+struct bomb{
+    char active;
+    coord_t coord;
+};
+static struct bomb bomb = {NULL, {0,0}};
 
 static image_handle_t explosion_img_1 = NULL;
 static image_handle_t explosion_img_2 = NULL;
 static image_handle_t alien_img[4][3];
 
 
-
+// Buttonsad
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
     SemaphoreHandle_t lock;
@@ -93,7 +99,7 @@ void vCheckHit(){
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
             if((abs(bullet_coord.x - aliens[row][col].coord.x - 11) <= 11) && aliens[row][col].alive){
-                if(abs(bullet_coord.y - aliens[row][col].coord.y) == 0){
+                if(abs(bullet_coord.y - aliens[row][col].coord.y - 4) <= 8){
                     aliens[row][col].alive = 2; 
                     score += 20;
                     alien_speed += 1;
@@ -121,7 +127,7 @@ void vShootBullet(){
             xSemaphoreGive(buttons.lock);
         }
     if(bullet_coord.y > 0 && bullet_active){
-        bullet_coord.y = bullet_coord.y - 5;
+        bullet_coord.y = bullet_coord.y - 10;
     }
     else{
     bullet_active = NULL;
@@ -169,6 +175,37 @@ void vWakeUpAliens(){
     }
 }
 
+void vToggleFrame(){
+    if(global_frame == 1)
+        global_frame = 2;
+    else
+        global_frame = 1;
+}
+
+void vDetectDeath(){
+    //if(abs(spaceship_coord.x - bomb.coord.x);
+    tumDrawFilledBox(spaceship_coord.x,spaceship_coord.y,20,20,0x000000);
+}
+
+void vDropBomb(){
+    int random_number;
+
+    if(!bomb.active && aliens[1][1].coord.x){ //if bomb not active, shoot bomb
+        random_number = rand()%7;   
+        if(aliens[current_last_row][random_number].alive){
+            bomb.active = 1;
+            printf("bomb shooting\n");
+            bomb.coord.y = aliens[current_last_row][random_number].coord.y + 15;
+            bomb.coord.x = aliens[current_last_row][random_number].coord.x + 15;
+        }
+    }
+
+    if(bomb.active)
+        bomb.coord.y += 10; //bomb moving downwards
+        if(bomb.coord.y >= SCREEN_HEIGHT)
+            bomb.active = NULL;    
+}   
+
 
 void vAlienControlTask(){
 
@@ -197,6 +234,9 @@ void vAlienControlTask(){
                 }
             }
 
+            vToggleFrame();
+
+            vDropBomb();
 
             vKillAliens();
             xSemaphoreGive(alien_lock);
@@ -291,9 +331,14 @@ void vDrawBullet(){
     tumDrawLine(bullet_coord.x,bullet_coord.y,bullet_coord.x,bullet_coord.y - 5,1, 0x0000FF);
 }
 
+void vDrawBomb(){
+    tumDrawCircle(bomb.coord.x,bomb.coord.y,3,0xFF0000);
+}
+
 void vDrawAliens(){
     if (xSemaphoreTake(alien_lock, 0) == pdTRUE){
-        for(int row = 0; row < 5; row++){
+        int row = 0;
+        for(row; row < 5; row++){
             for(int col = 0; col < 8; col++){
 
                 switch(aliens[row][col].alive){
@@ -301,6 +346,8 @@ void vDrawAliens(){
                     //alien alive
                     case 1: aliens[row][col].coord.x = alien_offset.x + col*50; 
                             aliens[row][col].coord.y = alien_offset.y + row*50;
+                            aliens[row][col].frame = global_frame;
+                            current_last_row = row;
                             tumDrawLoadedImage(alien_img[aliens[row][col].type][aliens[row][col].frame],aliens[row][col].coord.x, aliens[row][col].coord.y);
                             break;
                     //alien explosion phase 1
@@ -323,6 +370,7 @@ void vDrawObjects(){
             vDrawBullet();
         }
         vDrawAliens();
+        vDrawBomb();
 }
 
 void vLoadImages(){
