@@ -24,6 +24,7 @@
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
 
 #define spaceship_FILEPATH "resources/images/spaceship.PNG"
+#define mothership_FILEPATH "resources/images/mothership.png"
 #define alien1_1_FILEPATH "resources/images/alien1_1.png"
 #define alien1_2_FILEPATH "resources/images/alien1_2.png"
 #define alien2_1_FILEPATH "resources/images/alien2_1.png"
@@ -32,6 +33,20 @@
 #define alien3_2_FILEPATH "resources/images/alien3_2.png"
 #define explosion_1_FILEPATH "resources/images/explosion1.png"
 #define explosion_2_FILEPATH "resources/images/explosion2.png"
+#define block1_1_FILEPATH "resources/images/block1_1.png"
+#define block1_2_FILEPATH "resources/images/block1_2.png"
+#define block2_1_FILEPATH "resources/images/block2_1.png"
+#define block2_2_FILEPATH "resources/images/block2_2.png"
+#define block3_1_FILEPATH "resources/images/block3_1.png"
+#define block3_2_FILEPATH "resources/images/block3_2.png"
+
+//Barriers
+struct barrier{
+    coord_t coord;
+    int hits; 
+    int type; 
+};
+static image_handle_t block_img[4][3]; 
 
 // Task Hanles
 static TaskHandle_t DemoTask = NULL;
@@ -44,6 +59,11 @@ static int lives = 3;
 static image_handle_t life_img = NULL;
 
 // Space ship
+struct spaceship{
+    coord_t coord;
+    char bullet_active;
+    coord_t bullet_coord;
+};
 static image_handle_t spaceship_img = NULL;
 static coord_t spaceship_coord;
 // Bullet
@@ -72,9 +92,11 @@ struct bomb{
 };
 static struct bomb bomb = {NULL, {0,0}};
 
+
 static image_handle_t explosion_img_1 = NULL;
 static image_handle_t explosion_img_2 = NULL;
 static image_handle_t alien_img[4][3];
+static image_handle_t mothership_img = NULL;
 
 
 // Buttonsad
@@ -98,8 +120,8 @@ void xGetButtonInput(void)
 void vCheckHit(){
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
-            if((abs(bullet_coord.x - aliens[row][col].coord.x - 11) <= 11) && aliens[row][col].alive){
-                if(abs(bullet_coord.y - aliens[row][col].coord.y - 4) <= 8){
+            if((abs(bullet_coord.x - aliens[row][col].coord.x - 10) <= 10) && aliens[row][col].alive){
+                if(abs(bullet_coord.y - aliens[row][col].coord.y - 10) <= 10){
                     aliens[row][col].alive = 2; 
                     score += 20;
                     alien_speed += 1;
@@ -183,8 +205,11 @@ void vToggleFrame(){
 }
 
 void vDetectDeath(){
-    //if(abs(spaceship_coord.x - bomb.coord.x);
-    tumDrawFilledBox(spaceship_coord.x,spaceship_coord.y,20,20,0x000000);
+    if((abs(spaceship_coord.y - bomb.coord.y + 20) <= 20) && bomb.active && (abs(spaceship_coord.x - bomb.coord.x + 20) <= 20)){
+        printf("Death detected\n");
+        lives--;
+        bomb.active = NULL;
+    }
 }
 
 void vDropBomb(){
@@ -203,7 +228,9 @@ void vDropBomb(){
     if(bomb.active)
         bomb.coord.y += 10; //bomb moving downwards
         if(bomb.coord.y >= SCREEN_HEIGHT)
-            bomb.active = NULL;    
+            bomb.active = NULL; 
+
+    
 }   
 
 
@@ -289,6 +316,7 @@ void  vControlTask(){
         // shooting 
         vShootBullet();
 
+        vDetectDeath();   
 
         vTaskDelay(20);
     }
@@ -325,6 +353,7 @@ void vDrawStatcItems(){
 
 void vDrawSpaceship(){
     tumDrawLoadedImage(spaceship_img,spaceship_coord.x,spaceship_coord.y);
+    tumDrawBox(spaceship_coord.x,spaceship_coord.y,35,40,0x00FF00);
 }
 
 void vDrawBullet(){
@@ -349,6 +378,7 @@ void vDrawAliens(){
                             aliens[row][col].frame = global_frame;
                             current_last_row = row;
                             tumDrawLoadedImage(alien_img[aliens[row][col].type][aliens[row][col].frame],aliens[row][col].coord.x, aliens[row][col].coord.y);
+                            tumDrawBox(aliens[row][col].coord.x, aliens[row][col].coord.y,20,20,0x00FFFF);
                             break;
                     //alien explosion phase 1
                     case 2: tumDrawLoadedImage(explosion_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
@@ -364,13 +394,18 @@ void vDrawAliens(){
     }
 }
 
+void vDrawMothership(){
+    tumDrawLoadedImage(mothership_img,200,20);
+}
+
 void vDrawObjects(){
         vDrawSpaceship();
-        if(bullet_active){
+        vDrawMothership();
+        if(bullet_active)
             vDrawBullet();
-        }
         vDrawAliens();
-        vDrawBomb();
+        if(bomb.active)
+            vDrawBomb();
 }
 
 void vLoadImages(){
@@ -380,7 +415,10 @@ void vLoadImages(){
 
     life_img = tumDrawLoadImage(spaceship_FILEPATH);
     tumDrawSetLoadedImageScale(life_img, 0.05);
-  
+
+    mothership_img = tumDrawLoadImage(mothership_FILEPATH);
+    tumDrawSetLoadedImageScale(mothership_img,0.08);
+
     alien_img[1][1] = tumDrawLoadImage(alien1_1_FILEPATH);
     tumDrawSetLoadedImageScale(alien_img[1][1], 0.25);
     
@@ -396,9 +434,8 @@ void vLoadImages(){
     alien_img[3][1] = tumDrawLoadImage(alien3_1_FILEPATH);
     tumDrawSetLoadedImageScale(alien_img[3][1], 0.25);
 
-     alien_img[3][2] = tumDrawLoadImage(alien3_2_FILEPATH);
+    alien_img[3][2] = tumDrawLoadImage(alien3_2_FILEPATH);
     tumDrawSetLoadedImageScale(alien_img[3][2], 0.25);
-    
 
     explosion_img_1 = tumDrawLoadImage(explosion_1_FILEPATH);
     tumDrawSetLoadedImageScale(explosion_img_1,2);
@@ -406,6 +443,26 @@ void vLoadImages(){
     explosion_img_2 = tumDrawLoadImage(explosion_2_FILEPATH);
     tumDrawSetLoadedImageScale(explosion_img_2,2);
 
+    block_img[1][1] = tumDrawLoadImage(block1_1_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[1][1],1);
+
+    block_img[1][2] = tumDrawLoadImage(block1_2_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[1][2],1);
+
+    block_img[2][1] = tumDrawLoadImage(block2_1_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[2][1],1);
+
+    block_img[2][2] = tumDrawLoadImage(block2_2_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[2][2],1);
+
+    block_img[3][1] = tumDrawLoadImage(block3_1_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[3][1],1);
+
+    block_img[3][2] = tumDrawLoadImage(block1_1_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[3][2],1);
+
+
+    
 }
 
 void vDrawTask(void *pvParameters)
@@ -472,7 +529,7 @@ int main(int argc, char *argv[])
     }
 
     if (xTaskCreate(vControlTask, "ControlTask", mainGENERIC_STACK_SIZE * 2, NULL,
-                    mainGENERIC_PRIORITY, &ControlTask) != pdPASS) {
+                    5, &ControlTask) != pdPASS) {
         goto err_controltask;
     }
 
