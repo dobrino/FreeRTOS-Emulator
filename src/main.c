@@ -51,6 +51,8 @@ static char bullet_active = NULL;
 static coord_t bullet_coord;
 
 // Aliens 
+static SemaphoreHandle_t alien_lock; //to lock acess to the alien variables 
+
 struct alien{
     coord_t coord;
     int type; //1,2,3 corellating with the loaded images
@@ -59,14 +61,14 @@ struct alien{
 };
 
 static struct alien aliens[5][8];
-static SemaphoreHandle_t alien_lock;
 
 static coord_t alien_offset;
 static char direction = 1;
 static int alien_speed = 1; 
+
 static image_handle_t explosion_img_1 = NULL;
 static image_handle_t explosion_img_2 = NULL;
-static image_handle_t alien_img[3][2];
+static image_handle_t alien_img[4][3];
 
 
 
@@ -143,6 +145,29 @@ void vKillAliens(){
     }
 }
 
+void vWakeUpAliens(){
+    if (xSemaphoreTake(alien_lock, 0) == pdTRUE){ 
+        //waking up the aliens
+        for(int row = 0; row < 5; row++){
+            for(int col = 0; col < 8; col++){
+                aliens[row][col].alive = 1;
+                aliens[row][col].frame = 2;
+                switch(row){
+                    case 0: aliens[row][col].type = 1;break;
+
+                    case 1: aliens[row][col].type = 2;break;
+
+                    case 2: aliens[row][col].type = 2;break;
+
+                    case 3: aliens[row][col].type = 3;break;
+
+                    case 4: aliens[row][col].type = 3;break;
+                }
+            }
+        }
+        xSemaphoreGive(alien_lock);
+    }
+}
 
 
 void vAlienControlTask(){
@@ -151,25 +176,8 @@ void vAlienControlTask(){
     alien_offset.x = 50;
     alien_offset.y = 50;
 
-    //waking up the aliens
-    for(int row = 0; row < 5; row++){
-        for(int col = 0; col < 8; col++){
-            aliens[row][col].alive = 1;
-            aliens[row][col].frame = 2;
-            switch(row){
-                case 0: aliens[row][col].type = 1;break;
+    vWakeUpAliens();
 
-                case 1: aliens[row][col].type = 2;break;
-
-                case 2: aliens[row][col].type = 2;break;
-
-                case 3: aliens[row][col].type = 3;break;
-
-                case 4: aliens[row][col].type = 3;break;
-            }
-        }
-    }
-    xSemaphoreGive(alien_lock);
 
     while(1){
         if (xSemaphoreTake(alien_lock, 0) == pdTRUE){
@@ -293,7 +301,7 @@ void vDrawAliens(){
                     //alien alive
                     case 1: aliens[row][col].coord.x = alien_offset.x + col*50; 
                             aliens[row][col].coord.y = alien_offset.y + row*50;
-                            tumDrawLoadedImage(alien_img[aliens[row][col].type][1],aliens[row][col].coord.x, aliens[row][col].coord.y);
+                            tumDrawLoadedImage(alien_img[aliens[row][col].type][aliens[row][col].frame],aliens[row][col].coord.x, aliens[row][col].coord.y);
                             break;
                     //alien explosion phase 1
                     case 2: tumDrawLoadedImage(explosion_img_1,aliens[row][col].coord.x, aliens[row][col].coord.y);
