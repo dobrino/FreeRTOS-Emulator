@@ -72,6 +72,11 @@ struct spaceship{
 static image_handle_t spaceship_img = NULL;
 static coord_t spaceship_coord;
 // Bullet
+struct bullet{
+    char active;
+    coord_t coord;
+};
+static struct bullet bullet;
 static char bullet_active = NULL;
 static coord_t bullet_coord;
 
@@ -147,6 +152,7 @@ void vShootBullet(){
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
                                     S)] && !bullet_active){ //S for Shoot
+                buttons.buttons[KEYCODE(S)] = 0;
                 bullet_coord.y = spaceship_coord.y + 10; //offset to th front of the spacehsip
                 bullet_coord.x = spaceship_coord.x + 18; //offset to the front of the spaceship
                 bullet_active = 1;
@@ -440,8 +446,8 @@ void vDrawAliens(){
                 switch(aliens[row][col].alive){
                     
                     //alien alive
-                    case 1: aliens[row][col].coord.x = alien_offset.x + col*30; 
-                            aliens[row][col].coord.y = alien_offset.y + row*30;
+                    case 1: aliens[row][col].coord.x = alien_offset.x + col*50; 
+                            aliens[row][col].coord.y = alien_offset.y + row*40;
                             aliens[row][col].frame = global_frame;
                             current_last_row = row;
                             tumDrawLoadedImage(alien_img[aliens[row][col].type][aliens[row][col].frame],aliens[row][col].coord.x, aliens[row][col].coord.y);
