@@ -66,11 +66,13 @@ static image_handle_t life_img = NULL;
 // Space ship
 struct spaceship{
     coord_t coord;
-    char bullet_active;
+    struct bullet bullet;
     coord_t bullet_coord;
+    SemaphoreHandle_t lock;
 };
+static struct spaceship spaceship;
 static image_handle_t spaceship_img = NULL;
-static coord_t spaceship_coord;
+//static coord_t spaceship_coord;
 // Bullet
 struct bullet{
     char active;
@@ -95,7 +97,7 @@ static struct alien aliens[5][8];
 
 static coord_t alien_offset;
 static char direction = 1;
-static int alien_speed = 1; 
+static int alien_speed = 1;
 struct bomb{
     char active;
     coord_t coord;
@@ -138,8 +140,8 @@ void vCheckHit(){
                     printf("hit detected with bullet coord: x: %d y: %d\n",bullet.coord.x,bullet.coord.y);
                     bullet.active = NULL;
                     printf("%d = %d?\n", aliens[row][col].coord.x,bullet.coord.x);
-                    bullet.coord.x = spaceship_coord.x;
-                    bullet.coord.y = spaceship_coord.y;
+                    bullet.coord.x = spaceship.coord.x;
+                    bullet.coord.y = spaceship.coord.y; 
                 }
             }
         }
@@ -153,8 +155,8 @@ void vShootBullet(){
             if (buttons.buttons[KEYCODE(
                                     S)] && !bullet.active){ //S for Shoot
                 buttons.buttons[KEYCODE(S)] = 0;
-                bullet.coord.y = spaceship_coord.y + 10; //offset to th front of the spacehsip
-                bullet.coord.x = spaceship_coord.x + 18; //offset to the front of the spaceship
+                bullet.coord.y = spaceship.coord.y + 10; //offset to th front of the spacehsip
+                bullet.coord.x = spaceship.coord.x + 18; //offset to the front of the spaceship
                 bullet.active = 1;
             }
             xSemaphoreGive(buttons.lock);
@@ -216,7 +218,7 @@ void vToggleFrame(){
 }
 
 void vDetectHits(){
-    if((abs(spaceship_coord.y - bomb.coord.y + 20) <= 20) && bomb.active && (abs(spaceship_coord.x - bomb.coord.x + 20) <= 20)){
+    if((abs(spaceship.coord.y - bomb.coord.y + 20) <= 20) && bomb.active && (abs(spaceship.coord.x - bomb.coord.x + 20) <= 20)){
         printf("Death detected\n");
         lives--;
         bomb.active = NULL;
@@ -338,11 +340,11 @@ void vInitBunkers(){
 void  vControlTask(){
     
     
-    spaceship_coord.x = SCREEN_WIDTH/2;
-    spaceship_coord.y = SCREEN_HEIGHT - 100;
+    spaceship.coord.x = SCREEN_WIDTH/2;
+    spaceship.coord.y = SCREEN_HEIGHT - 100;
 
-    bullet.coord.x = spaceship_coord.x;
-    bullet.coord.y = spaceship_coord.y;
+    bullet.coord.x = spaceship.coord.x;
+    bullet.coord.y = spaceship.coord.y;
 
     vInitBunkers();
 
@@ -363,8 +365,8 @@ void  vControlTask(){
         if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
                                     A)]) { // A for steering to the left
-                if(spaceship_coord.x > 0)    
-                    spaceship_coord.x = spaceship_coord.x - 5;
+                if(spaceship.coord.x > 0)    
+                    spaceship.coord.x = spaceship.coord.x - 5;
             }
             xSemaphoreGive(buttons.lock);
         }
@@ -372,8 +374,8 @@ void  vControlTask(){
         if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
                                     D)]) { // D for steering to the right
-                if(spaceship_coord.x < SCREEN_WIDTH - 40)
-                    spaceship_coord.x = spaceship_coord.x + 5;
+                if(spaceship.coord.x < SCREEN_WIDTH - 40)
+                    spaceship.coord.x = spaceship.coord.x + 5;
             }
             xSemaphoreGive(buttons.lock);
         }
@@ -425,8 +427,8 @@ void vDrawStatcItems(){
 }
 
 void vDrawSpaceship(){
-    tumDrawLoadedImage(spaceship_img,spaceship_coord.x,spaceship_coord.y);
-    tumDrawBox(spaceship_coord.x,spaceship_coord.y,35,40,0x00FF00);
+    tumDrawLoadedImage(spaceship_img,spaceship.coord.x,spaceship.coord.y);
+    tumDrawBox(spaceship.coord.x,spaceship.coord.y,35,40,0x00FF00);
 }
 
 void vDrawBullet(){
