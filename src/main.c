@@ -77,8 +77,8 @@ struct bullet{
     coord_t coord;
 };
 static struct bullet bullet;
-static char bullet_active = NULL;
-static coord_t bullet_coord;
+//static char bullet_active = NULL;
+//static coord_t bullet_coord;
 
 // Aliens 
 static SemaphoreHandle_t alien_lock; //to lock acess to the alien variables 
@@ -130,16 +130,16 @@ void xGetButtonInput(void)
 void vCheckHit(){
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
-            if((abs(bullet_coord.x - aliens[row][col].coord.x - 10) <= 10) && aliens[row][col].alive){
-                if(abs(bullet_coord.y - aliens[row][col].coord.y - 10) <= 10){
+            if((abs(bullet.coord.x - aliens[row][col].coord.x - 10) <= 10) && aliens[row][col].alive){
+                if(abs(bullet.coord.y - aliens[row][col].coord.y - 10) <= 10){
                     aliens[row][col].alive = 2; 
-                    score += 20;
+                    score += 10 * (4-aliens[row][col].type);
                     alien_speed += 1;
-                    printf("hit detected with bullet coord: x: %d y: %d\n",bullet_coord.x,bullet_coord.y);
-                    bullet_active = NULL;
-                    printf("%d = %d?\n", aliens[row][col].coord.x,bullet_coord.x);
-                    bullet_coord.x = spaceship_coord.x;
-                    bullet_coord.y = spaceship_coord.y;
+                    printf("hit detected with bullet coord: x: %d y: %d\n",bullet.coord.x,bullet.coord.y);
+                    bullet.active = NULL;
+                    printf("%d = %d?\n", aliens[row][col].coord.x,bullet.coord.x);
+                    bullet.coord.x = spaceship_coord.x;
+                    bullet.coord.y = spaceship_coord.y;
                 }
             }
         }
@@ -151,19 +151,19 @@ void vCheckHit(){
 void vShootBullet(){
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
-                                    S)] && !bullet_active){ //S for Shoot
+                                    S)] && !bullet.active){ //S for Shoot
                 buttons.buttons[KEYCODE(S)] = 0;
-                bullet_coord.y = spaceship_coord.y + 10; //offset to th front of the spacehsip
-                bullet_coord.x = spaceship_coord.x + 18; //offset to the front of the spaceship
-                bullet_active = 1;
+                bullet.coord.y = spaceship_coord.y + 10; //offset to th front of the spacehsip
+                bullet.coord.x = spaceship_coord.x + 18; //offset to the front of the spaceship
+                bullet.active = 1;
             }
             xSemaphoreGive(buttons.lock);
         }
-    if(bullet_coord.y > 0 && bullet_active){
-        bullet_coord.y = bullet_coord.y - 10;
+    if(bullet.coord.y > 0 && bullet.active){
+        bullet.coord.y = bullet.coord.y - 10;
     }
     else{
-    bullet_active = NULL;
+    bullet.active = NULL;
     }
 
     vCheckHit();
@@ -230,10 +230,10 @@ void vDetectHits(){
                         bomb.active = NULL;
                     }
                 }
-                if(bullet_active && (bunker_blocks[i][row][col].hits < 2) && (abs(bunker_blocks[i][row][col].coord.x - bullet_coord.x + block_width/2) <= block_width/2)){
-                    if(abs(bunker_blocks[i][row][col].coord.y - bullet_coord.y + block_width/2) <= block_width/2){ 
+                if(bullet.active && (bunker_blocks[i][row][col].hits < 2) && (abs(bunker_blocks[i][row][col].coord.x - bullet.coord.x + block_width/2) <= block_width/2)){
+                    if(abs(bunker_blocks[i][row][col].coord.y - bullet.coord.y + block_width/2) <= block_width/2){ 
                         bunker_blocks[i][row][col].hits++;
-                        bullet_active = NULL;
+                        bullet.active = NULL;
                         printf("block %d, row %d, col %d \n", i, row,col);
                     }
                 }
@@ -341,8 +341,8 @@ void  vControlTask(){
     spaceship_coord.x = SCREEN_WIDTH/2;
     spaceship_coord.y = SCREEN_HEIGHT - 100;
 
-    bullet_coord.x = spaceship_coord.x;
-    bullet_coord.y = spaceship_coord.y;
+    bullet.coord.x = spaceship_coord.x;
+    bullet.coord.y = spaceship_coord.y;
 
     vInitBunkers();
 
@@ -430,7 +430,7 @@ void vDrawSpaceship(){
 }
 
 void vDrawBullet(){
-    tumDrawLine(bullet_coord.x,bullet_coord.y,bullet_coord.x,bullet_coord.y - 5,1, 0x0000FF);
+    tumDrawLine(bullet.coord.x,bullet.coord.y,bullet.coord.x,bullet.coord.y - 5,1, 0x0000FF);
 }
 
 void vDrawBomb(){
@@ -473,7 +473,7 @@ void vDrawMothership(){
 void vDrawObjects(){
         vDrawSpaceship();
         vDrawMothership();
-        if(bullet_active)
+        if(bullet.active)
             vDrawBullet();
         vDrawAliens();
         if(bomb.active)
