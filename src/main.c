@@ -41,12 +41,17 @@
 #define block3_2_FILEPATH "resources/images/block3_2.png"
 
 //Barriers
-struct barrier{
+struct bunker_block{
     coord_t coord;
     int hits; 
     int type; 
 };
 static image_handle_t block_img[4][3]; 
+static struct bunker_block bunker_blocks[4][3][3];
+const int block_width = 16;
+const int bunker_x_offset = 32;
+const int bunker_y_offset = 320;
+
 
 // Task Hanles
 static TaskHandle_t DemoTask = NULL;
@@ -204,12 +209,32 @@ void vToggleFrame(){
         global_frame = 1;
 }
 
-void vDetectDeath(){
+void vDetectHits(){
     if((abs(spaceship_coord.y - bomb.coord.y + 20) <= 20) && bomb.active && (abs(spaceship_coord.x - bomb.coord.x + 20) <= 20)){
         printf("Death detected\n");
         lives--;
         bomb.active = NULL;
     }
+    for(int i = 0;i<4;i++){
+        for(int row = 0;row<3;row++){
+            for(int col = 0; col<3;col++){
+                if(bomb.active && (bunker_blocks[i][row][col].hits < 2) && (abs(bunker_blocks[i][row][col].coord.x - bomb.coord.x + block_width/2) <= block_width/2)){
+                    if(abs(bunker_blocks[i][row][col].coord.y - bomb.coord.y + block_width/2) <= block_width/2){ 
+                        bunker_blocks[i][row][col].hits++;
+                        bomb.active = NULL;
+                    }
+                }
+                if(bullet_active && (bunker_blocks[i][row][col].hits < 2) && (abs(bunker_blocks[i][row][col].coord.x - bullet_coord.x + block_width/2) <= block_width/2)){
+                    if(abs(bunker_blocks[i][row][col].coord.y - bullet_coord.y + block_width/2) <= block_width/2){ 
+                        bunker_blocks[i][row][col].hits++;
+                        bullet_active = NULL;
+                        printf("block %d, row %d, col %d \n", i, row,col);
+                    }
+                }
+            }
+        }
+    }
+    
 }
 
 void vDropBomb(){
@@ -273,6 +298,37 @@ void vAlienControlTask(){
     }        
 }
 
+void vInitBunkers(){
+    for(int i = 0;i<4;i++){
+        for(int row = 0;row<3;row++){
+            bunker_blocks[i][row][0].coord.x = block_width+(i+1)*SCREEN_WIDTH/5 - bunker_x_offset;
+            bunker_blocks[i][row][0].coord.y = bunker_y_offset+row*block_width;
+            bunker_blocks[i][row][1].coord.x = block_width*2+(i+1)*SCREEN_WIDTH/5 - bunker_x_offset;
+            bunker_blocks[i][row][1].coord.y = bunker_y_offset+row*block_width;
+            bunker_blocks[i][row][2].coord.x = block_width*3+(i+1)*SCREEN_WIDTH/5 - bunker_x_offset;
+            bunker_blocks[i][row][2].coord.y = bunker_y_offset+row*block_width;
+            
+            //Initialisation
+            for(int col = 0;col<3;col++){
+                bunker_blocks[i][row][col].hits = 0;
+            }
+            switch(row){
+                case 0: bunker_blocks[i][row][0].type = 3;
+                        bunker_blocks[i][row][1].type= 1;
+                        bunker_blocks[i][row][2].type= 2;break;\
+
+                case 1: bunker_blocks[i][row][0].type= 1;
+                        bunker_blocks[i][row][1].type= 1;
+                        bunker_blocks[i][row][2].type= 1;break;
+
+                case 2: bunker_blocks[i][row][0].type= 1;
+                        bunker_blocks[i][row][1].hits= 2;
+                        bunker_blocks[i][row][2].type= 1;break;
+            }
+        }
+    }
+}
+
 void  vControlTask(){
     
     
@@ -281,6 +337,8 @@ void  vControlTask(){
 
     bullet_coord.x = spaceship_coord.x;
     bullet_coord.y = spaceship_coord.y;
+
+    vInitBunkers();
 
     printf("Screen widt:%d\n", SCREEN_WIDTH);
     
@@ -316,7 +374,7 @@ void  vControlTask(){
         // shooting 
         vShootBullet();
 
-        vDetectDeath();   
+        vDetectHits();   
 
         vTaskDelay(20);
     }
@@ -339,14 +397,23 @@ void vDrawLives(){
     } 
 }
 
-void vDrawBarriers(){
 
+void vDrawBunkers(){
+    for(int i = 0;i<4;i++){
+        for(int row = 0;row<3;row++){
+            for(int col = 0; col<3;col++){
+                if(bunker_blocks[i][row][col].hits < 2){
+                    tumDrawLoadedImage(block_img[bunker_blocks[i][row][col].type][1 + bunker_blocks[i][row][col].hits],bunker_blocks[i][row][col].coord.x,bunker_blocks[i][row][col].coord.y);
+                }
+            }
+        }
+    }
 }
 
 void vDrawStatcItems(){
     vDrawScore();
     vDrawLives();
-
+    vDrawBunkers();
     // Draw bottom cave
     tumDrawLine(0,SCREEN_HEIGHT-30,SCREEN_WIDTH,SCREEN_HEIGHT-30,2,0x00FF00);
 }
@@ -443,22 +510,22 @@ void vLoadImages(){
     tumDrawSetLoadedImageScale(explosion_img_2,2);
 
     block_img[1][1] = tumDrawLoadImage(block1_1_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[1][1],1);
+    tumDrawSetLoadedImageScale(block_img[1][1],2);
 
     block_img[1][2] = tumDrawLoadImage(block1_2_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[1][2],1);
+    tumDrawSetLoadedImageScale(block_img[1][2],2);
 
     block_img[2][1] = tumDrawLoadImage(block2_1_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[2][1],1);
+    tumDrawSetLoadedImageScale(block_img[2][1],2);
 
     block_img[2][2] = tumDrawLoadImage(block2_2_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[2][2],1);
+    tumDrawSetLoadedImageScale(block_img[2][2],2);
 
     block_img[3][1] = tumDrawLoadImage(block3_1_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[3][1],1);
+    tumDrawSetLoadedImageScale(block_img[3][1],2);
 
-    block_img[3][2] = tumDrawLoadImage(block1_1_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[3][2],1);
+    block_img[3][2] = tumDrawLoadImage(block3_2_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[3][2],2);
 
 
     
