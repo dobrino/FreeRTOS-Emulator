@@ -40,6 +40,15 @@
 #define block3_1_FILEPATH "resources/images/block3_1.png"
 #define block3_2_FILEPATH "resources/images/block3_2.png"
 
+#define STATE_COUNT 2
+#define GAME_STARTING 1
+#define GAME_IN_PROGESS 2
+#define NEXT_TASK 0
+#define PREV_TASK 1
+
+#define STATE_DEBOUNCE_DELAY 300
+#define STATE_QUEUE_LENGTH 1
+
 //Barriers
 struct bunker_block{
     coord_t coord;
@@ -54,11 +63,16 @@ const int bunker_y_offset = 320;
 
 
 // Task Hanles
-static TaskHandle_t DemoTask = NULL;
+static TaskHandle_t DrawTask = NULL;
 static TaskHandle_t ControlTask = NULL;
 static TaskHandle_t AlienControlTask = NULL;
 static TaskHandle_t MothershipConrol = NULL;
 static TaskHandle_t GameControl = NULL;
+
+// Queue Hanles and signals 
+static QueueHandle_t StateQueue;
+const unsigned char next_state_signal = NEXT_TASK;
+const unsigned char prev_state_signal = PREV_TASK;
 
 // Score Board
 static int score = 0;
@@ -122,6 +136,8 @@ typedef struct buttons_buffer {
 
 static buttons_buffer_t buttons = { 0 };
 
+#define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
+
 void xGetButtonInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -130,14 +146,110 @@ void xGetButtonInput(void)
     }
 }
 
-#define KEYCODE(CHAR) SDL_SCANCODE_##CHAR
+static int vCheckStateInput(void)
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(R)]) {
+            buttons.buttons[KEYCODE(R)] = 0;
+            printf("Change state was init\n");
+            if (StateQueue) {
+                xSemaphoreGive(buttons.lock);
+                xQueueSend(StateQueue, &next_state_signal, 0);
+                return 0;
+            }
+            return -1;
+        }
+        xSemaphoreGive(buttons.lock);
+    }
 
-void vGameControl(){
+    return 0;
+}
 
-    whilt(1){
-        
+
+// STATE MACHINE 
+void changeState(volatile unsigned char *state, unsigned char forwards)
+{
+    switch (forwards) {
+        case NEXT_TASK:
+            if (*state == STATE_COUNT - 1) {
+                *state = 0;
+            }
+            else {
+                (*state)++;
+            }
+            break;
+        case PREV_TASK:
+            if (*state == 0) {
+                *state = STATE_COUNT - 1;
+            }
+            else {
+                (*state)--;
+            }
+            break;
+        default:
+            break;
     }
 }
+
+/*
+ * Example basic state machine with sequential states
+ */
+void vGameControl(void *pvParameters)
+{
+    unsigned char current_state = GAME_STARTING; // Default state
+    unsigned char state_changed =
+        1; // Only re-evaluate state if it has changed
+    unsigned char input = 0;
+
+    const int state_change_period = STATE_DEBOUNCE_DELAY;
+
+    TickType_t last_change = xTaskGetTickCount();
+
+    while (1) {
+        if (state_changed) {
+            goto initial_state;
+        }
+
+        // Handle state machine input
+        if (StateQueue)
+            if (xQueueReceive(StateQueue, &input, portMAX_DELAY) ==
+                pdTRUE)
+                if (xTaskGetTickCount() - last_change >
+                    state_change_period) {
+                    changeState(&current_state, input);
+                    state_changed = 1;
+                    last_change = xTaskGetTickCount();
+                }
+
+initial_state:
+        // Handle current state
+        if (state_changed) {
+            switch (current_state) {
+                case GAME_STARTING:
+                    if(ControlTask)
+                        vTaskSuspend(ControlTask);
+                    if(AlienControlTask)
+                        vTaskSuspend(AlienControlTask);
+                    if(MothershipConrol)
+                        vTaskSuspend(MothershipConrol);                    
+                case GAME_IN_PROGESS:
+                    if(!ControlTask)
+                        vTaskResume(ControlTask);
+                    if(!AlienControlTask)
+                        vTaskResume(AlienControlTask);
+                    if(!MothershipConrol)
+                        vTaskResume(MothershipConrol);
+                    break;
+                default:
+                    break;
+            }
+            state_changed = 0;
+        }
+    }
+}
+
+
+
 
 void vMotherhsipControl(){
     
@@ -386,11 +498,12 @@ void  vControlTask(){
         if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
                                     A)]) { // A for steering to the left
+                printf("A was pressed\n");
                 if(spaceship.coord.x > 0)    
                     spaceship.coord.x = spaceship.coord.x - 5;
             }
             xSemaphoreGive(buttons.lock);
-        }
+        } 
 
         if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
@@ -615,8 +728,8 @@ int main(int argc, char *argv[])
         goto err_buttons_lock;
     }
 
-    if (xTaskCreate(vDrawTask, "DemoTask", mainGENERIC_STACK_SIZE * 2, NULL,
-                    mainGENERIC_PRIORITY, &DemoTask) != pdPASS) {
+    if (xTaskCreate(vDrawTask, "DrawTask", mainGENERIC_STACK_SIZE * 2, NULL,
+                    mainGENERIC_PRIORITY, &DrawTask) != pdPASS) {
         goto err_demotask;
     }
 
@@ -637,6 +750,19 @@ int main(int argc, char *argv[])
                     mainGENERIC_PRIORITY, &MothershipConrol) != pdPASS) {
         goto err_controltask;
     }
+
+    StateQueue = xQueueCreate(STATE_QUEUE_LENGTH, sizeof(unsigned char));
+
+    if (xTaskCreate(vGameControl, "GameControl", mainGENERIC_STACK_SIZE * 2, NULL,
+                    configMAX_PRIORITIES, &GameControl) != pdPASS) {
+        goto err_controltask;
+    }
+
+    vTaskSuspend(ControlTask);
+    vTaskSuspend(MothershipConrol);
+    vTaskSuspend(AlienControlTask);
+
+
 
 
     vTaskStartScheduler();
