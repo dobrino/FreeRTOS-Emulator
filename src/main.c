@@ -67,6 +67,7 @@ static TaskHandle_t DrawTask = NULL;
 static TaskHandle_t ControlTask = NULL;
 static TaskHandle_t AlienControlTask = NULL;
 static TaskHandle_t MothershipConrol = NULL;
+static TaskHandle_t StateMachine = NULL;
 static TaskHandle_t GameControl = NULL;
 
 // Queue Hanles and signals 
@@ -194,7 +195,7 @@ void changeState(volatile unsigned char *state, unsigned char forwards)
 /*
  * Example basic state machine with sequential states
  */
-void vGameControl(void *pvParameters)
+void vStateMachine(void *pvParameters)
 {
     unsigned char current_state = GAME_STARTING; // Default state
     unsigned char state_changed =
@@ -248,7 +249,13 @@ initial_state:
     }
 }
 
+void vGameControl(){
 
+    while(1)
+    vCheckStateInput();
+
+    vTaskDelay(20);
+}
 
 
 void vMotherhsipControl(){
@@ -498,7 +505,6 @@ void  vControlTask(){
         if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
                                     A)]) { // A for steering to the left
-                printf("A was pressed\n");
                 if(spaceship.coord.x > 0)    
                     spaceship.coord.x = spaceship.coord.x - 5;
             }
@@ -751,16 +757,23 @@ int main(int argc, char *argv[])
         goto err_controltask;
     }
 
-    StateQueue = xQueueCreate(STATE_QUEUE_LENGTH, sizeof(unsigned char));
+    // StateQueue = xQueueCreate(STATE_QUEUE_LENGTH, sizeof(unsigned char));
 
-    if (xTaskCreate(vGameControl, "GameControl", mainGENERIC_STACK_SIZE * 2, NULL,
-                    configMAX_PRIORITIES, &GameControl) != pdPASS) {
-        goto err_controltask;
-    }
+    // if (xTaskCreate(vStateMachine, "StateMachine", mainGENERIC_STACK_SIZE * 2, NULL,
+    //                 mainGENERIC_PRIORITY+3, &StateMachine) != pdPASS) {
+    //     goto err_controltask;
+    // }
 
-    vTaskSuspend(ControlTask);
-    vTaskSuspend(MothershipConrol);
-    vTaskSuspend(AlienControlTask);
+    // if (xTaskCreate(vGameControl, "GameControl", mainGENERIC_STACK_SIZE * 2, NULL,
+    //                 mainGENERIC_PRIORITY+6, &GameControl) != pdPASS) {
+    //     goto err_controltask;
+    // }
+
+
+
+    // vTaskSuspend(ControlTask);
+    // vTaskSuspend(MothershipConrol);
+    // vTaskSuspend(AlienControlTask);
 
 
 
