@@ -69,6 +69,7 @@ static TaskHandle_t AlienControlTask = NULL;
 static TaskHandle_t MothershipConrol = NULL;
 static TaskHandle_t StateMachine = NULL;
 static TaskHandle_t GameControl = NULL;
+static TaskHandle_t IntroTask = NULL;
 
 // Queue Hanles and signals
 static QueueHandle_t StateQueue;
@@ -229,10 +230,26 @@ initial_state:
                 case GAME_STARTING:
                     if(AlienControlTask)
                         vTaskSuspend(AlienControlTask);
+                    if(DrawTask)
+                        vTaskSuspend(DrawTask);
+                    if(MothershipConrol)
+                        vTaskSuspend(MothershipConrol);
+                    if(ControlTask)
+                        vTaskSuspend(ControlTask);
+                    if(IntroTask)
+                        vTaskResume(IntroTask);                    
                     break;
                 case GAME_IN_PROGESS:
                     if(AlienControlTask)
                         vTaskResume(AlienControlTask);
+                    if(DrawTask)
+                        vTaskResume(DrawTask);
+                    if(MothershipConrol)
+                        vTaskResume(MothershipConrol);
+                    if(ControlTask)
+                        vTaskResume(ControlTask);
+                    if(IntroTask)
+                        vTaskSuspend(IntroTask);
                     break;
                 default:
                     break;
@@ -243,14 +260,34 @@ initial_state:
     }
 }
 
-void vGameControl(){
+void vIntroTask(void *pvParameters)
+{
+    // structure to store time retrieved from Linux kernel
+    static struct timespec the_time;
+    static char our_time_string[100];
+    static int our_time_strings_width = 0;
+
+    vLoadImages();
+
+    tumDrawBindThread();
 
 
+    while (1) {
+        tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
+        xGetButtonInput(); // Update global input
 
-    while(1)
-    vCheckStateInput();
+        //Draw Static Items (Background and Scoreboard)
+        tumDrawClear(0x000000); // Clear screen
 
-    vTaskDelay(20);
+        tumDrawUpdateScreen(); // Refresh the screen to draw string
+
+        tumDrawText("These are the rules!",300,300,0x00FFF);
+
+        vCheckStateInput();
+
+        // Basic sleep of 1000 milliseconds
+        vTaskDelay(20);
+    }
 }
 
 
@@ -764,13 +801,17 @@ int main(int argc, char *argv[])
         goto err_controltask;
     }
 
-    // if (xTaskCreate(vGameControl, "GameControl", mainGENERIC_STACK_SIZE * 2, NULL,
-    //                 mainGENERIC_PRIORITY+6, &GameControl) != pdPASS) {
-    //     goto err_controltask;
-    // }
+    if (xTaskCreate(vIntroTask, "IntroTask", mainGENERIC_STACK_SIZE * 2, NULL,
+                    mainGENERIC_PRIORITY+3, &IntroTask) != pdPASS) {
+        goto err_controltask;
+    }
 
-
+    vTaskSuspend(DrawTask);
+    vTaskSuspend(IntroTask);
+    vTaskSuspend(MothershipConrol);
     vTaskSuspend(AlienControlTask);
+    vTaskSuspend(ControlTask);
+
 
 
 
