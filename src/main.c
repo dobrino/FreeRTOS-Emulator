@@ -39,6 +39,7 @@
 #define block2_2_FILEPATH "resources/images/block2_2.png"
 #define block3_1_FILEPATH "resources/images/block3_1.png"
 #define block3_2_FILEPATH "resources/images/block3_2.png"
+#define logo_FILEPATH "resources/images/logo.jpg"
 
 #define STATE_COUNT 2
 #define GAME_STARTING 0
@@ -48,6 +49,10 @@
 
 #define STATE_DEBOUNCE_DELAY 300
 #define STATE_QUEUE_LENGTH 1
+
+//Intro 
+static image_handle_t logo_img;
+static int logo_y = 800;
 
 //Barriers
 struct bunker_block{
@@ -260,14 +265,81 @@ initial_state:
     }
 }
 
+void vLoadImages(){
+    // Load Images
+    spaceship_img = tumDrawLoadImage(spaceship_FILEPATH);
+    tumDrawSetLoadedImageScale(spaceship_img, 0.1);
+
+    life_img = tumDrawLoadImage(spaceship_FILEPATH);
+    tumDrawSetLoadedImageScale(life_img, 0.05);
+
+    mothership_img = tumDrawLoadImage(mothership_FILEPATH);
+    tumDrawSetLoadedImageScale(mothership_img,0.08);
+
+    alien_img[1][1] = tumDrawLoadImage(alien1_1_FILEPATH);
+    tumDrawSetLoadedImageScale(alien_img[1][1], 0.25);
+
+    alien_img[1][2] = tumDrawLoadImage(alien1_2_FILEPATH);
+    tumDrawSetLoadedImageScale(alien_img[1][2], 0.25);
+
+    alien_img[2][1] = tumDrawLoadImage(alien2_1_FILEPATH);
+    tumDrawSetLoadedImageScale(alien_img[2][1], 0.25);
+
+    alien_img[2][2] = tumDrawLoadImage(alien2_2_FILEPATH);
+    tumDrawSetLoadedImageScale(alien_img[2][2], 0.25);
+
+    alien_img[3][1] = tumDrawLoadImage(alien3_1_FILEPATH);
+    tumDrawSetLoadedImageScale(alien_img[3][1], 0.25);
+
+    alien_img[3][2] = tumDrawLoadImage(alien3_2_FILEPATH);
+    tumDrawSetLoadedImageScale(alien_img[3][2], 0.25);
+
+    explosion_img_1 = tumDrawLoadImage(explosion_1_FILEPATH);
+    tumDrawSetLoadedImageScale(explosion_img_1,2);
+
+    explosion_img_2 = tumDrawLoadImage(explosion_2_FILEPATH);
+    tumDrawSetLoadedImageScale(explosion_img_2,2);
+
+    block_img[1][1] = tumDrawLoadImage(block1_1_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[1][1],2);
+
+    block_img[1][2] = tumDrawLoadImage(block1_2_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[1][2],2);
+
+    block_img[2][1] = tumDrawLoadImage(block2_1_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[2][1],2);
+
+    block_img[2][2] = tumDrawLoadImage(block2_2_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[2][2],2);
+
+    block_img[3][1] = tumDrawLoadImage(block3_1_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[3][1],2);
+
+    block_img[3][2] = tumDrawLoadImage(block3_2_FILEPATH);
+    tumDrawSetLoadedImageScale(block_img[3][2],2);
+
+    logo_img = tumDrawLoadImage(logo_FILEPATH);
+    tumDrawSetLoadedImageScale(logo_img,0.5);
+}
+
+int drawIntro(int tick_counter){
+    tumDrawText("These are the rules, obey them!",300,300,0x00FFF);
+
+    if(logo_y > -100){
+        logo_y = 500 - tick_counter*10;
+        printf("%d \n", logo_y);
+        printf("%d \n", tick_counter);
+    }
+    tumDrawLoadedImage(logo_img,100,logo_y); 
+
+    return logo_y;   
+}
+
 void vIntroTask(void *pvParameters)
 {
-    // structure to store time retrieved from Linux kernel
-    static struct timespec the_time;
-    static char our_time_string[100];
-    static int our_time_strings_width = 0;
-
+    int tick_counter = 0;
     vLoadImages();
+
 
     tumDrawBindThread();
 
@@ -279,15 +351,13 @@ void vIntroTask(void *pvParameters)
         //Draw Static Items (Background and Scoreboard)
         tumDrawClear(0x000000); // Clear screen
 
-        tumDrawText("These are the rules, obey them!",300,300,0x00FFF);
+        logo_y = drawIntro(tick_counter);
 
         tumDrawUpdateScreen(); // Refresh the screen to draw string
 
-
-        
-
         vCheckStateInput();
 
+        tick_counter++;
         // Basic sleep of 1000 milliseconds
         vTaskDelay(20);
     }
@@ -660,59 +730,6 @@ void vDrawObjects(){
             vDrawBomb();
 }
 
-void vLoadImages(){
-    // Load Images
-    spaceship_img = tumDrawLoadImage(spaceship_FILEPATH);
-    tumDrawSetLoadedImageScale(spaceship_img, 0.1);
-
-    life_img = tumDrawLoadImage(spaceship_FILEPATH);
-    tumDrawSetLoadedImageScale(life_img, 0.05);
-
-    mothership_img = tumDrawLoadImage(mothership_FILEPATH);
-    tumDrawSetLoadedImageScale(mothership_img,0.08);
-
-    alien_img[1][1] = tumDrawLoadImage(alien1_1_FILEPATH);
-    tumDrawSetLoadedImageScale(alien_img[1][1], 0.25);
-
-    alien_img[1][2] = tumDrawLoadImage(alien1_2_FILEPATH);
-    tumDrawSetLoadedImageScale(alien_img[1][2], 0.25);
-
-    alien_img[2][1] = tumDrawLoadImage(alien2_1_FILEPATH);
-    tumDrawSetLoadedImageScale(alien_img[2][1], 0.25);
-
-    alien_img[2][2] = tumDrawLoadImage(alien2_2_FILEPATH);
-    tumDrawSetLoadedImageScale(alien_img[2][2], 0.25);
-
-    alien_img[3][1] = tumDrawLoadImage(alien3_1_FILEPATH);
-    tumDrawSetLoadedImageScale(alien_img[3][1], 0.25);
-
-    alien_img[3][2] = tumDrawLoadImage(alien3_2_FILEPATH);
-    tumDrawSetLoadedImageScale(alien_img[3][2], 0.25);
-
-    explosion_img_1 = tumDrawLoadImage(explosion_1_FILEPATH);
-    tumDrawSetLoadedImageScale(explosion_img_1,2);
-
-    explosion_img_2 = tumDrawLoadImage(explosion_2_FILEPATH);
-    tumDrawSetLoadedImageScale(explosion_img_2,2);
-
-    block_img[1][1] = tumDrawLoadImage(block1_1_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[1][1],2);
-
-    block_img[1][2] = tumDrawLoadImage(block1_2_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[1][2],2);
-
-    block_img[2][1] = tumDrawLoadImage(block2_1_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[2][1],2);
-
-    block_img[2][2] = tumDrawLoadImage(block2_2_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[2][2],2);
-
-    block_img[3][1] = tumDrawLoadImage(block3_1_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[3][1],2);
-
-    block_img[3][2] = tumDrawLoadImage(block3_2_FILEPATH);
-    tumDrawSetLoadedImageScale(block_img[3][2],2);
-}
 
 void vDrawTask(void *pvParameters)
 {
@@ -720,8 +737,6 @@ void vDrawTask(void *pvParameters)
     static struct timespec the_time;
     static char our_time_string[100];
     static int our_time_strings_width = 0;
-
-    vLoadImages();
 
     tumDrawBindThread();
 
