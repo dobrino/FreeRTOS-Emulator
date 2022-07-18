@@ -279,9 +279,12 @@ void vIntroTask(void *pvParameters)
         //Draw Static Items (Background and Scoreboard)
         tumDrawClear(0x000000); // Clear screen
 
+        tumDrawText("These are the rules, obey them!",300,300,0x00FFF);
+
         tumDrawUpdateScreen(); // Refresh the screen to draw string
 
-        tumDrawText("These are the rules!",300,300,0x00FFF);
+
+        
 
         vCheckStateInput();
 
