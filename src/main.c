@@ -40,6 +40,8 @@
 #define block3_1_FILEPATH "resources/images/block3_1.png"
 #define block3_2_FILEPATH "resources/images/block3_2.png"
 #define logo_FILEPATH "resources/images/logo.jpg"
+#define start_game_FILEPATH "resources/images/start_game.png"
+#define controls_FILEPATH "resources/images/controls.png"
 
 #define STATE_COUNT 2
 #define GAME_STARTING 0
@@ -50,9 +52,16 @@
 #define STATE_DEBOUNCE_DELAY 300
 #define STATE_QUEUE_LENGTH 1
 
+//Screen
+static SemaphoreHandle_t DrawSignal = NULL;
+static SemaphoreHandle_t ScreenLock = NULL;
+
 //Intro 
 static image_handle_t logo_img;
-static int logo_y = 800;
+static image_handle_t controls_img;
+static image_handle_t start__game_img;
+static int logo_y = 0;
+static int spaceships_x = 0;
 
 //Barriers
 struct bunker_block{
@@ -75,6 +84,7 @@ static TaskHandle_t MothershipConrol = NULL;
 static TaskHandle_t StateMachine = NULL;
 static TaskHandle_t GameControl = NULL;
 static TaskHandle_t IntroTask = NULL;
+static TaskHandle_t BufferSwap = NULL;
 
 // Queue Hanles and signals
 static QueueHandle_t StateQueue;
@@ -153,11 +163,31 @@ void xGetButtonInput(void)
     }
 }
 
+void vBufferSwap(void *pvParameters)
+{
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    const TickType_t frameratePeriod = 20;
+
+    tumDrawBindThread(); // Setup Rendering handle with correct GL context
+
+    while (1) {
+        if (xSemaphoreTake(ScreenLock, portMAX_DELAY) == pdTRUE) {
+            tumDrawUpdateScreen();
+            tumEventFetchEvents(FETCH_EVENT_BLOCK);
+            xSemaphoreGive(ScreenLock);
+            xSemaphoreGive(DrawSignal);
+            vTaskDelayUntil(&xLastWakeTime,
+                            pdMS_TO_TICKS(frameratePeriod));
+        }
+    }
+}
+
 static int vCheckStateInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(R)]) {
-            buttons.buttons[KEYCODE(R)] = 0;
+        if (buttons.buttons[KEYCODE(SPACE)]) {
+            buttons.buttons[KEYCODE(SPACE)] = 0;
             printf("Change state was init\n");
             if (StateQueue) {
                 xSemaphoreGive(buttons.lock);
@@ -268,13 +298,13 @@ initial_state:
 void vLoadImages(){
     // Load Images
     spaceship_img = tumDrawLoadImage(spaceship_FILEPATH);
-    tumDrawSetLoadedImageScale(spaceship_img, 0.1);
+    tumDrawSetLoadedImageScale(spaceship_img, 0.2);
 
     life_img = tumDrawLoadImage(spaceship_FILEPATH);
     tumDrawSetLoadedImageScale(life_img, 0.05);
 
     mothership_img = tumDrawLoadImage(mothership_FILEPATH);
-    tumDrawSetLoadedImageScale(mothership_img,0.08);
+    tumDrawSetLoadedImageScale(mothership_img,0.16);
 
     alien_img[1][1] = tumDrawLoadImage(alien1_1_FILEPATH);
     tumDrawSetLoadedImageScale(alien_img[1][1], 0.25);
@@ -320,6 +350,23 @@ void vLoadImages(){
 
     logo_img = tumDrawLoadImage(logo_FILEPATH);
     tumDrawSetLoadedImageScale(logo_img,0.5);
+
+    controls_img = tumDrawLoadImage(controls_FILEPATH);
+    tumDrawSetLoadedImageScale(controls_img,0.25);
+
+    start__game_img = tumDrawLoadImage(start_game_FILEPATH);
+    tumDrawSetLoadedImageScale(start__game_img,0.25);
+}
+const alien_position_y = 300; 
+void vDrawScores(int tick_counter){ //Explaining score counts for different alien types in Start Screen
+    if(tick_counter >= 60){
+        tumDrawLoadedImage(alien_img[1][1],20,alien_position_y);//alien1
+        tumDrawText("30 Points", 50, alien_position_y,0xFFFFFF); //alienscore1> 30 Points
+        tumDrawLoadedImage(alien_img[2][1],20,alien_position_y+40);//alien2
+        tumDrawText("20 Points", 50, alien_position_y+40,0xFFFFFF);//alienscore2:
+        tumDrawLoadedImage(alien_img[3][1],20,alien_position_y+80);//alien3
+        tumDrawText("10 Points", 50, alien_position_y+80,0xFFFFFF);//alienscore3
+    }
 }
 
 int drawIntro(int tick_counter){
@@ -327,13 +374,23 @@ int drawIntro(int tick_counter){
 
     if(logo_y > -100){
         logo_y = 500 - tick_counter*10;
+        spaceships_x = -550 + 10*tick_counter;
         printf("%d \n", logo_y);
         printf("%d \n", tick_counter);
     }
-    tumDrawLoadedImage(logo_img,100,logo_y); 
+
+    tumDrawLoadedImage(logo_img,100,logo_y);
+    tumDrawLoadedImage(controls_img,200,logo_y+350);
+    tumDrawLoadedImage(mothership_img,spaceships_x,60);
+    tumDrawLoadedImage(spaceship_img,550-spaceships_x, 30);
+    if((tick_counter%50)<25) //Modulo Toggle Operation - patented by C. Dobra - Apple INC., Period: 50 ticks Duty Cycle: 50%
+        tumDrawLoadedImage(start__game_img,200,logo_y+530);
+    
+    vDrawScores(tick_counter);
 
     return logo_y;   
 }
+
 
 void vIntroTask(void *pvParameters)
 {
@@ -341,25 +398,27 @@ void vIntroTask(void *pvParameters)
     vLoadImages();
 
 
-    tumDrawBindThread();
-
 
     while (1) {
-        tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
-        xGetButtonInput(); // Update global input
+         if (DrawSignal)
+            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+                pdTRUE) {
+                    //tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
+                    xGetButtonInput(); // Update global input
 
-        //Draw Static Items (Background and Scoreboard)
-        tumDrawClear(0x000000); // Clear screen
+                    //Draw Static Items (Background and Scoreboard)
+                    tumDrawClear(0x000000); // Clear screen
 
-        logo_y = drawIntro(tick_counter);
+                    logo_y = drawIntro(tick_counter);
 
-        tumDrawUpdateScreen(); // Refresh the screen to draw string
+                    vCheckStateInput();
 
-        vCheckStateInput();
+                    tick_counter++;
 
-        tick_counter++;
-        // Basic sleep of 1000 milliseconds
-        vTaskDelay(20);
+                    xSemaphoreGive(ScreenLock);
+                    // Basic sleep of 1000 milliseconds
+                    vTaskDelay(20);
+                }
     }
 }
 
@@ -452,6 +511,8 @@ void vWakeUpAliens(){
                 }
             }
         }
+        alien_offset.x = 50;
+        alien_offset.y = 50;
         xSemaphoreGive(alien_lock);
     }
 }
@@ -467,6 +528,9 @@ void vDetectHits(){
     if((abs(spaceship.coord.y - bomb.coord.y + 20) <= 20) && bomb.active && (abs(spaceship.coord.x - bomb.coord.x + 20) <= 20)){
         printf("Death detected\n");
         lives--;
+        vInitSpaceship();
+        vInitBunkers();
+        vWakeUpAliens();
         bomb.active = NULL;
     }
     for(int i = 0;i<4;i++){
@@ -504,7 +568,7 @@ void vDropBomb(){
         }
     }
 
-    if(bomb.active)
+    if(bomb.active) //if bomb active, let bomb fall
         bomb.coord.y += 10; //bomb moving downwards
         if(bomb.coord.y >= SCREEN_HEIGHT)
             bomb.active = NULL;
@@ -516,8 +580,7 @@ void vDropBomb(){
 void vAlienControlTask(){
 
 
-    alien_offset.x = 50;
-    alien_offset.y = 50;
+    
 
     printf("Aliens Control Task started\n");
 
@@ -585,14 +648,20 @@ void vInitBunkers(){
     }
 }
 
-void  vControlTask(){
-
-
+void vInitSpaceship(){
     spaceship.coord.x = SCREEN_WIDTH/2;
     spaceship.coord.y = SCREEN_HEIGHT - 100;
 
     spaceship.bullet.coord.x = spaceship.coord.x;
     spaceship.bullet.coord.y = spaceship.coord.y;
+
+    xSemaphoreGive(spaceship.lock);  
+}
+
+void  vControlTask(){
+
+
+    vInitSpaceship();
 
     vInitBunkers();
 
@@ -680,7 +749,7 @@ void vDrawSpaceship(){
 }
 
 void vDrawBullet(){
-    tumDrawLine(spaceship.bullet.coord.x,spaceship.bullet.coord.y,spaceship.bullet.coord.x,spaceship.bullet.coord.y - 5,1, 0x0000FF);
+    tumDrawLine(spaceship.bullet.coord.x,spaceship.bullet.coord.y,spaceship.bullet.coord.x,spaceship.bullet.coord.y - 5,10, 0x0000FF);
 }
 
 void vDrawBomb(){
@@ -717,17 +786,25 @@ void vDrawAliens(){
 }
 
 void vDrawMothership(){
-    tumDrawLoadedImage(mothership_img,mothership.coord.x,mothership.coord.y);
+    if (xSemaphoreTake(spaceship.lock, 0) == pdTRUE){
+        tumDrawLoadedImage(mothership_img,250,mothership.coord.y);
+        xSemaphoreGive(spaceship.lock);
+    }
 }
 
 void vDrawObjects(){
+    if (xSemaphoreTake(spaceship.lock, 0) == pdTRUE) {
         vDrawSpaceship();
-        vDrawMothership();
         if(spaceship.bullet.active)
             vDrawBullet();
-        vDrawAliens();
-        if(bomb.active)
-            vDrawBomb();
+        xSemaphoreGive(spaceship.lock);
+    }
+
+    vDrawMothership();
+
+    vDrawAliens();
+    if(bomb.active)
+        vDrawBomb();
 }
 
 
@@ -738,27 +815,31 @@ void vDrawTask(void *pvParameters)
     static char our_time_string[100];
     static int our_time_strings_width = 0;
 
-    tumDrawBindThread();
+    //downscaling ships for gamemode
+    tumDrawSetLoadedImageScale(spaceship_img, 0.1);
+    tumDrawSetLoadedImageScale(mothership_img,0.08);
 
+    
 
 
     while (1) {
-        tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
-        xGetButtonInput(); // Update global input
+         if (DrawSignal)
+            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+                pdTRUE) {
+                    //tumEventFetchEvents(FETCH_EVENT_NONBLOCK); // Query events backend for new events, ie. button presses
+                    xGetButtonInput(); // Update global input
 
-        //Draw Static Items (Background and Scoreboard)
-        tumDrawClear(0x000000); // Clear screen
-        vDrawStatcItems();
+                    //Draw Static Items (Background and Scoreboard)
+                    tumDrawClear(0x000000); // Clear screen
+                    vDrawStatcItems();
 
-        //Draw Moving Objects (Monsters Bullet)
-        vDrawObjects();
+                    //Draw Moving Objects (Monsters Bullet)
+                    vDrawObjects();
 
-        tumDrawUpdateScreen(); // Refresh the screen to draw string
-
-        vCheckStateInput();
-
-        // Basic sleep of 1000 milliseconds
-        vTaskDelay(20);
+                    xSemaphoreGive(ScreenLock);
+                    // Basic sleep of 1000 milliseconds
+                    vTaskDelay(20);
+                }
     }
 }
 
@@ -794,6 +875,7 @@ int main(int argc, char *argv[])
         goto err_demotask;
     }
 
+    spaceship.lock = xSemaphoreCreateMutex();
     if (xTaskCreate(vControlTask, "ControlTask", mainGENERIC_STACK_SIZE * 2, NULL,
                     5, &ControlTask) != pdPASS) {
         goto err_controltask;
@@ -821,6 +903,14 @@ int main(int argc, char *argv[])
 
     if (xTaskCreate(vIntroTask, "IntroTask", mainGENERIC_STACK_SIZE * 2, NULL,
                     mainGENERIC_PRIORITY+3, &IntroTask) != pdPASS) {
+        goto err_controltask;
+    }
+
+    DrawSignal = xSemaphoreCreateBinary();
+    ScreenLock = xSemaphoreCreateMutex();
+    if (xTaskCreate(vBufferSwap, "BufferSwapTask",
+                    mainGENERIC_STACK_SIZE * 2, NULL, configMAX_PRIORITIES,
+                    &BufferSwap) != pdPASS) {
         goto err_controltask;
     }
 
