@@ -43,11 +43,14 @@
 #define start_game_FILEPATH "resources/images/start_game.png"
 #define controls_FILEPATH "resources/images/controls.png"
 
-#define STATE_COUNT 2
+#define STATE_COUNT 4
 #define GAME_STARTING 0
 #define GAME_IN_PROGESS 1
+#define GAME_PAUSE 2
+#define GAME_END 3
 #define NEXT_TASK 0
-#define PREV_TASK 1
+#define END_GAME 1
+#define PAUSE 2
 
 #define STATE_DEBOUNCE_DELAY 300
 #define STATE_QUEUE_LENGTH 1
@@ -89,7 +92,8 @@ static TaskHandle_t BufferSwap = NULL;
 // Queue Hanles and signals
 static QueueHandle_t StateQueue;
 const unsigned char next_state_signal = NEXT_TASK;
-const unsigned char prev_state_signal = PREV_TASK;
+const unsigned char prev_state_signal = END_GAME;
+const unsigned char pause_signal = PAUSE;
 
 // Score Board
 static int score = 0;
@@ -208,19 +212,20 @@ void changeState(volatile unsigned char *state, unsigned char forwards)
 {
     switch (forwards) {
         case NEXT_TASK:
-            if (*state == STATE_COUNT - 1) {
-                *state = 0;
-            }
-            else {
+            printf("%d \n",*state);
+            if (*state <= 1) {
                 (*state)++;
-            }
-            break;
-        case PREV_TASK:
-            if (*state == 0) {
-                *state = STATE_COUNT - 1;
             }
             else {
                 (*state)--;
+            }  
+            break;
+        case END_GAME:
+            if (*state == STATE_COUNT-2) {
+                *state = STATE_COUNT - 3; //Restarting Game
+            }
+            else {
+                *state = STATE_COUNT - 1; //Ending Game 
             }
             break;
         default:
@@ -285,6 +290,20 @@ initial_state:
                         vTaskResume(ControlTask);
                     if(IntroTask)
                         vTaskSuspend(IntroTask);
+                    break;
+                case GAME_PAUSE:
+                    if(AlienControlTask)
+                        vTaskSuspend(AlienControlTask);
+                    if(DrawTask)
+                        vTaskResume(DrawTask);
+                    if(MothershipConrol)
+                        vTaskSuspend(MothershipConrol);
+                    if(ControlTask)
+                        vTaskSuspend(ControlTask);
+                    if(IntroTask)
+                        vTaskSuspend(IntroTask);
+                    break;
+                case GAME_END:
                     break;
                 default:
                     break;
@@ -677,6 +696,14 @@ void  vControlTask(){
             }
             xSemaphoreGive(buttons.lock);
         }
+         
+        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+            if (buttons.buttons[KEYCODE(
+                                    Q)]) { // Equiv to SDL_SCANCODE_Q
+                exit(EXIT_SUCCESS);
+            }
+            xSemaphoreGive(buttons.lock);
+        }
 
         // Spaceship Control
         if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -835,7 +862,7 @@ void vDrawTask(void *pvParameters)
 
                     //Draw Moving Objects (Monsters Bullet)
                     vDrawObjects();
-
+                    vCheckStateInput();
                     xSemaphoreGive(ScreenLock);
                     // Basic sleep of 1000 milliseconds
                     vTaskDelay(20);
