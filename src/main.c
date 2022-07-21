@@ -483,7 +483,7 @@ void vIntroTask(void *pvParameters)
 }
 
 
-void vMotherhsipControl(){
+void vMothershipControl(){
 
     //initing spaeship
     xSemaphoreTake(mothership.lock,0);
@@ -492,29 +492,31 @@ void vMotherhsipControl(){
 
     while(1){
         tick_counter++;
+        printf("motership_tick: %d \n", tick_counter);
         if (xSemaphoreTake(mothership.lock, 0) == pdTRUE){
             if(tick_counter > 20){
                 if(!direction){
                     if(mothership.coord.x < SCREEN_WIDTH + 30){
-                        mothership.coord.y =+ 10*tick_counter;
+                        mothership.coord.x =+ tick_counter;
                     }
                     else{
-                        direction = !direction;
+                        direction = 1;
                         tick_counter = 0;
                     }
                 }
                 else{
                     if(mothership.coord.x > -30){
-                        mothership.coord.y =- 10*tick_counter;
+                        mothership.coord.x =- 10*tick_counter;
                     }
                     else{
-                        direction = !direction;
+                        direction = NULL;
                         tick_counter = 0;
                     }
                 }
             }
             xSemaphoreGive(mothership.lock);
         }
+        vTaskDelay(40);
     }
 }
 
@@ -915,7 +917,7 @@ void vDrawAliens(){
 
 void vDrawMothership(){
     if (xSemaphoreTake(spaceship.lock, 0) == pdTRUE){
-        tumDrawLoadedImage(mothership_img,250,mothership.coord.y);
+        tumDrawLoadedImage(mothership_img,mothership.coord.x,mothership.coord.y);
         xSemaphoreGive(spaceship.lock);
     }
 }
@@ -1018,7 +1020,7 @@ int main(int argc, char *argv[])
     }
 
     mothership.lock = xSemaphoreCreateMutex();
-    if (xTaskCreate(vMotherhsipControl, "MothershipControl", mainGENERIC_STACK_SIZE * 2, NULL,
+    if (xTaskCreate(vMothershipControl, "MothershipControl", mainGENERIC_STACK_SIZE * 2, NULL,
                     mainGENERIC_PRIORITY, &MothershipConrol) != pdPASS) {
         goto err_controltask;
     }
