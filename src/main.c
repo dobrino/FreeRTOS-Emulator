@@ -487,10 +487,34 @@ void vMotherhsipControl(){
 
     //initing spaeship
     xSemaphoreTake(mothership.lock,0);
-
+    int tick_counter = 0;
+    char direction = NULL; //move right by default
 
     while(1){
-
+        tick_counter++;
+        if (xSemaphoreTake(mothership.lock, 0) == pdTRUE){
+            if(tick_counter > 20){
+                if(!direction){
+                    if(mothership.coord.x < SCREEN_WIDTH + 30){
+                        mothership.coord.y =+ 10*tick_counter;
+                    }
+                    else{
+                        direction = !direction;
+                        tick_counter = 0;
+                    }
+                }
+                else{
+                    if(mothership.coord.x > -30){
+                        mothership.coord.y =- 10*tick_counter;
+                    }
+                    else{
+                        direction = !direction;
+                        tick_counter = 0;
+                    }
+                }
+            }
+            xSemaphoreGive(mothership.lock);
+        }
     }
 }
 
