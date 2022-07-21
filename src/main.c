@@ -92,11 +92,13 @@ static TaskHandle_t BufferSwap = NULL;
 // Queue Hanles and signals
 static QueueHandle_t StateQueue;
 const unsigned char next_state_signal = NEXT_TASK;
-const unsigned char prev_state_signal = END_GAME;
+const unsigned char end_game_signal = END_GAME;
 const unsigned char pause_signal = PAUSE;
 
 // Score Board
 static int score = 0;
+static int high_score = 0;
+static int level = 1;
 static int lives = 3;
 static image_handle_t life_img = NULL;
 
@@ -131,6 +133,7 @@ struct alien{
 };
 static int global_frame;
 static int current_last_row = 4;
+static int current_alien_count = 5;
 static struct alien aliens[5][8];
 
 static coord_t alien_offset;
@@ -187,6 +190,14 @@ void vBufferSwap(void *pvParameters)
     }
 }
 
+void vRestartGame(){
+    vInitGame();
+    lives = 3;
+    if(score > high_score)
+        high_score = score;
+    score = 0;
+}
+
 static int vCheckStateInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
@@ -202,6 +213,20 @@ static int vCheckStateInput(void)
         }
         xSemaphoreGive(buttons.lock);
     }
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(R)] && lives == 0) {
+            buttons.buttons[KEYCODE(R)] = 0;
+            printf("Change state was init\n");
+            if (StateQueue) {
+                vRestartGame();           
+                xSemaphoreGive(buttons.lock);
+                xQueueSend(StateQueue, &end_game_signal, 0);
+                return 0;
+            }
+            return -1;
+        }
+        xSemaphoreGive(buttons.lock);
+    }
 
     return 0;
 }
@@ -210,9 +235,9 @@ static int vCheckStateInput(void)
 // STATE MACHINE
 void changeState(volatile unsigned char *state, unsigned char forwards)
 {
+    
     switch (forwards) {
         case NEXT_TASK:
-            printf("%d \n",*state);
             if (*state <= 1) {
                 (*state)++;
             }
@@ -221,7 +246,7 @@ void changeState(volatile unsigned char *state, unsigned char forwards)
             }  
             break;
         case END_GAME:
-            if (*state == STATE_COUNT-2) {
+            if (*state == STATE_COUNT - 1) {
                 *state = STATE_COUNT - 3; //Restarting Game
             }
             else {
@@ -231,11 +256,17 @@ void changeState(volatile unsigned char *state, unsigned char forwards)
         default:
             break;
     }
+    printf("current state: %d \n",*state);
 }
 
 /*
  * Example basic state machine with sequential states
  */
+
+void vPauseControl(){
+
+}
+
 void vStateMachine(void *pvParameters)
 {
     unsigned char current_state = GAME_STARTING; // Default state
@@ -304,6 +335,16 @@ initial_state:
                         vTaskSuspend(IntroTask);
                     break;
                 case GAME_END:
+                    if(AlienControlTask)
+                        vTaskSuspend(AlienControlTask);
+                    if(DrawTask)
+                        vTaskResume(DrawTask);
+                    if(MothershipConrol)
+                        vTaskSuspend(MothershipConrol);
+                    if(ControlTask)
+                        vTaskSuspend(ControlTask);
+                    if(IntroTask)
+                        vTaskSuspend(IntroTask);
                     break;
                 default:
                     break;
@@ -461,6 +502,7 @@ void vCheckHit(){
                     aliens[row][col].alive = 2;
                     score += 10 * (4-aliens[row][col].type);
                     alien_speed += 1;
+                    current_alien_count--;
                     printf("hit detected with bullet coord: x: %d y: %d\n",spaceship.bullet.coord.x,spaceship.bullet.coord.y);
                     spaceship.bullet.active = NULL;
                     printf("%d = %d?\n", aliens[row][col].coord.x,spaceship.bullet.coord.x);
@@ -543,15 +585,44 @@ void vToggleFrame(){
         global_frame = 1;
 }
 
+void vInitGame(){
+    vInitSpaceship();
+    vInitBunkers();
+    vWakeUpAliens(); 
+    bomb.active = NULL;
+}
+
+void vDeathroutine(){
+    printf("Death detected\n");
+    lives--;
+    if(lives == 0)
+        xQueueSend(StateQueue, &end_game_signal, 0);
+    vInitGame();
+
+}
+
+
 void vDetectHits(){
+    //Check hits
     if((abs(spaceship.coord.y - bomb.coord.y + 20) <= 20) && bomb.active && (abs(spaceship.coord.x - bomb.coord.x + 20) <= 20)){
-        printf("Death detected\n");
-        lives--;
-        vInitSpaceship();
-        vInitBunkers();
-        vWakeUpAliens();
-        bomb.active = NULL;
+        vDeathroutine();
     }
+
+    //Check if aliens reached bottom
+    for(int col = 0; col < 8; col++){
+        if(aliens[current_last_row][col].coord.y == spaceship.coord.y-20){
+            vDeathroutine();
+        }
+    }
+    
+    //Level Up
+    if(current_alien_count == 0){
+        level++;
+        current_alien_count = 5;
+        vInitGame();
+    }
+
+    //Check Bunkers 
     for(int i = 0;i<4;i++){
         for(int row = 0;row<3;row++){
             for(int col = 0; col<3;col++){
@@ -736,6 +807,10 @@ void vDrawScore(){
     char str[15];
     sprintf(str, "%04d", score);
     tumDrawText(str, 10,10,0xFF0000);
+    sprintf(str, "high score: %04d", high_score);
+    tumDrawText(str, 10,40,0xFF0000);
+    sprintf(str, "Level : %d", level);
+    tumDrawText(str, SCREEN_WIDTH-100,10,0xFF0000);
 }
 
 void vDrawLives(){
@@ -747,6 +822,8 @@ void vDrawLives(){
     for(int i = 0; i < lives; i++){
         tumDrawLoadedImage(life_img,30 + i*30,SCREEN_HEIGHT-20);
     }
+
+    //Insert GAME OVER Text here
 }
 
 
@@ -863,6 +940,7 @@ void vDrawTask(void *pvParameters)
                     //Draw Moving Objects (Monsters Bullet)
                     vDrawObjects();
                     vCheckStateInput();
+
                     xSemaphoreGive(ScreenLock);
                     // Basic sleep of 1000 milliseconds
                     vTaskDelay(20);
