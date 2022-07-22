@@ -55,11 +55,12 @@
 #define STATE_DEBOUNCE_DELAY 300
 #define STATE_QUEUE_LENGTH 1
 
+#define ALIEN_COUNT 40
 //Screen
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
 
-//Intro 
+//Intro these variables are not shared across multiple tasks, only used in intro 
 static image_handle_t logo_img;
 static image_handle_t controls_img;
 static image_handle_t start__game_img;
@@ -77,9 +78,10 @@ static struct bunker_block bunker_blocks[4][3][3];
 const int block_width = 16;
 const int bunker_x_offset = 32;
 const int bunker_y_offset = 320;
+static SemaphoreHandle_t barrier_lock;
 
 
-// Task Hanles
+// Task Handles
 static TaskHandle_t DrawTask = NULL;
 static TaskHandle_t ControlTask = NULL;
 static TaskHandle_t AlienControlTask = NULL;
@@ -89,18 +91,29 @@ static TaskHandle_t GameControl = NULL;
 static TaskHandle_t IntroTask = NULL;
 static TaskHandle_t BufferSwap = NULL;
 
-// Queue Hanles and signals
+// Queue Handles and signals
 static QueueHandle_t StateQueue;
 const unsigned char next_state_signal = NEXT_TASK;
 const unsigned char end_game_signal = END_GAME;
 const unsigned char pause_signal = PAUSE;
 
-// Score Board
-static int score = 0;
-static int high_score = 0;
-static int level = 1;
-static int lives = 3;
+// Score Board todo: put into struct
+
+struct scoreboard{
+    int score;
+    int buffer;
+    int high_score_sp;
+    int hight_score_mp;
+    int level;
+    int lives;
+    SemaphoreHandle_t lock;
+};
+static struct scoreboard scoreboard = {0,0,0,0,1,3,NULL};
+
+//static int level = 1;
+//static int lives = 3;
 static image_handle_t life_img = NULL;
+static SemaphoreHandle_t score_lock = NULL;
 
 // Bullet
 struct bullet{
@@ -124,7 +137,6 @@ static struct spaceship mothership;
 
 // Aliens
 static SemaphoreHandle_t alien_lock; //to lock acess to the alien variables
-
 struct alien{
     coord_t coord;
     int type; //1,2,3 corellating with the loaded images
@@ -133,15 +145,16 @@ struct alien{
 };
 static int global_frame;
 static int current_last_row = 4;
-static int current_alien_count = 5;
+static int current_alien_count = ALIEN_COUNT;
 static struct alien aliens[5][8];
 
 static coord_t alien_offset;
 static char direction = 1;
-static int alien_speed = 1;
+static int alien_speed = 2;
 struct bomb{
     char active;
     coord_t coord;
+    SemaphoreHandle_t lock;
 };
 static struct bomb bomb = {NULL, {0,0}};
 
@@ -192,10 +205,13 @@ void vBufferSwap(void *pvParameters)
 
 void vRestartGame(){
     vInitGame();
-    lives = 3;
-    if(score > high_score)
-        high_score = score;
-    score = 0;
+    if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE) {
+        scoreboard.lives = 3;
+        if(scoreboard.score > scoreboard.high_score_sp)
+            scoreboard.high_score_sp = scoreboard.score;
+        scoreboard.score = 0;
+        xSemaphoreGive(scoreboard.lock);    
+    }
 }
 
 static int vCheckStateInput(void)
@@ -214,7 +230,7 @@ static int vCheckStateInput(void)
         xSemaphoreGive(buttons.lock);
     }
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(R)] && lives == 0) {
+        if (buttons.buttons[KEYCODE(R)] && scoreboard.lives == 0) {
             buttons.buttons[KEYCODE(R)] = 0;
             printf("Change state was init\n");
             if (StateQueue) {
@@ -435,8 +451,6 @@ int drawIntro(int tick_counter){
     if(logo_y > -100){
         logo_y = 500 - tick_counter*10;
         spaceships_x = -550 + 10*tick_counter;
-        printf("%d \n", logo_y);
-        printf("%d \n", tick_counter);
     }
 
     tumDrawLoadedImage(logo_img,100,logo_y);
@@ -486,36 +500,36 @@ void vIntroTask(void *pvParameters)
 void vMothershipControl(){
 
     //initing spaeship
-    xSemaphoreTake(mothership.lock,0);
+    xSemaphoreGive(mothership.lock);
     int tick_counter = 0;
     char direction = NULL; //move right by default
 
     while(1){
         tick_counter++;
-        printf("motership_tick: %d \n", tick_counter);
         if (xSemaphoreTake(mothership.lock, 0) == pdTRUE){
             if(tick_counter > 20){
-                if(!direction){
-                    if(mothership.coord.x < SCREEN_WIDTH + 30){
-                        mothership.coord.x =+ tick_counter;
-                    }
-                    else{
-                        direction = 1;
-                        tick_counter = 0;
-                    }
-                }
-                else{
-                    if(mothership.coord.x > -30){
-                        mothership.coord.x =- 10*tick_counter;
+                if(direction){
+                    //printf();
+                    if(mothership.coord.x >= -30){
+                        mothership.coord.x -= 10;
                     }
                     else{
                         direction = NULL;
                         tick_counter = 0;
                     }
                 }
+                else{
+                    if(mothership.coord.x <= SCREEN_WIDTH + 30){
+                        mothership.coord.x += 10;
+                    }
+                    else{
+                        direction = 1;
+                        tick_counter = 0;
+                    }
+                }
             }
             xSemaphoreGive(mothership.lock);
-        }
+        }   
         vTaskDelay(40);
     }
 }
@@ -523,18 +537,30 @@ void vMothershipControl(){
 void vCheckHit(){
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
-            if((abs(spaceship.bullet.coord.x - aliens[row][col].coord.x - 10) <= 10) && aliens[row][col].alive){
-                if(abs(spaceship.bullet.coord.y - aliens[row][col].coord.y - 10) <= 10){
-                    aliens[row][col].alive = 2;
-                    score += 10 * (4-aliens[row][col].type);
-                    alien_speed += 1;
-                    current_alien_count--;
-                    printf("hit detected with bullet coord: x: %d y: %d\n",spaceship.bullet.coord.x,spaceship.bullet.coord.y);
-                    spaceship.bullet.active = NULL;
-                    printf("%d = %d?\n", aliens[row][col].coord.x,spaceship.bullet.coord.x);
-                    spaceship.bullet.coord.x = spaceship.coord.x;
-                    spaceship.bullet.coord.y = spaceship.coord.y;
+            if (xSemaphoreTake(alien_lock, 0) == pdTRUE){
+                if((abs(spaceship.bullet.coord.x - aliens[row][col].coord.x - 10) <= 10) && aliens[row][col].alive){
+                    if(abs(spaceship.bullet.coord.y - aliens[row][col].coord.y - 10) <= 10){
+                        aliens[row][col].alive = 2;
+                        if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){ 
+                            scoreboard.score += 10 * (4-aliens[row][col].type);
+                            if(scoreboard.buffer == 200){
+                                scoreboard.lives++;
+                                scoreboard.buffer = 0;
+                            }
+                            xSemaphoreGive(scoreboard.lock);
+                        }
+                        printf("alien_speed %d",alien_speed);
+                        alien_speed += 1;
+                        
+                        current_alien_count--;
+                        printf("hit detected with bullet coord: x: %d y: %d\n",spaceship.bullet.coord.x,spaceship.bullet.coord.y);
+                        spaceship.bullet.active = NULL;
+                        printf("%d = %d?\n", aliens[row][col].coord.x,spaceship.bullet.coord.x);
+                        spaceship.bullet.coord.x = spaceship.coord.x;
+                        spaceship.bullet.coord.y = spaceship.coord.y;
+                    }
                 }
+                xSemaphoreGive(alien_lock);
             }
         }
     }
@@ -581,6 +607,10 @@ void vKillAliens(){
 void vWakeUpAliens(){
     if (xSemaphoreTake(alien_lock, 0) == pdTRUE){
         //waking up the aliens
+        if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){ 
+            alien_speed = 2 + (scoreboard.level-1)*3; //starting alien speed according to level
+            xSemaphoreGive(scoreboard.lock);
+        }
         for(int row = 0; row < 5; row++){
             for(int col = 0; col < 8; col++){
                 aliens[row][col].alive = 1;
@@ -620,9 +650,12 @@ void vInitGame(){
 
 void vDeathroutine(){
     printf("Death detected\n");
-    lives--;
-    if(lives == 0)
-        xQueueSend(StateQueue, &end_game_signal, 0);
+    if(xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
+        scoreboard.lives--;
+        xSemaphoreGive(scoreboard.lock);
+        if(scoreboard.lives == 0)
+         xQueueSend(StateQueue, &end_game_signal, 0);
+    }
     vInitGame();
 
 }
@@ -643,8 +676,12 @@ void vDetectHits(){
     
     //Level Up
     if(current_alien_count == 0){
-        level++;
-        current_alien_count = 5;
+        if(xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
+            scoreboard.level++;
+            xSemaphoreGive(scoreboard.lock);
+        }
+            
+        current_alien_count = ALIEN_COUNT;
         vInitGame();
     }
 
@@ -707,14 +744,14 @@ void vAlienControlTask(){
         if (xSemaphoreTake(alien_lock, 0) == pdTRUE){
             //Motion
             if(direction){//moving to the right
-                alien_offset.x = alien_offset.x + alien_speed;
+                alien_offset.x = alien_offset.x + alien_speed/2;
                 if(aliens[0][7].coord.x >= SCREEN_WIDTH-20){//hitting right wall
                     alien_offset.y = alien_offset.y+15;
                     direction = NULL;
                 }
             }
             if(!direction){//moving to the left
-                alien_offset.x = alien_offset.x - alien_speed;
+                alien_offset.x = alien_offset.x - alien_speed/2;
                 if(alien_offset.x <= 0){//hitting left wall
                     alien_offset.y = alien_offset.y+15;
                     direction = 1;
@@ -784,7 +821,6 @@ void  vControlTask(){
     printf("Screen widt:%d\n", SCREEN_WIDTH);
 
     while(1){
-
         // Exit Mode
         if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
             if (buttons.buttons[KEYCODE(
@@ -801,57 +837,64 @@ void  vControlTask(){
             }
             xSemaphoreGive(buttons.lock);
         }
+        if (xSemaphoreTake(spaceship.lock, 0) == pdTRUE){
 
-        // Spaceship Control
-        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-            if (buttons.buttons[KEYCODE(
-                                    A)]) { // A for steering to the left
-                if(spaceship.coord.x > 0)
-                    spaceship.coord.x = spaceship.coord.x - 5;
+            // Spaceship Control
+            if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+                if (buttons.buttons[KEYCODE(
+                                        A)]) { // A for steering to the left
+                    if(spaceship.coord.x > 0)
+                        spaceship.coord.x = spaceship.coord.x - 5;
+                }
+                xSemaphoreGive(buttons.lock);
             }
-            xSemaphoreGive(buttons.lock);
-        }
 
-        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-            if (buttons.buttons[KEYCODE(
-                                    D)]) { // D for steering to the right
-                if(spaceship.coord.x < SCREEN_WIDTH - 40)
-                    spaceship.coord.x = spaceship.coord.x + 5;
+            if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+                if (buttons.buttons[KEYCODE(
+                                        D)]) { // D for steering to the right
+                    if(spaceship.coord.x < SCREEN_WIDTH - 40)
+                        spaceship.coord.x = spaceship.coord.x + 5;
+                }
+                xSemaphoreGive(buttons.lock);
             }
-            xSemaphoreGive(buttons.lock);
-        }
-        // shooting
-        vShootBullet();
+            // shooting
+            vShootBullet();
 
-        vDetectHits();
+            vDetectHits();
+
+            xSemaphoreGive(spaceship.lock);
+        }
 
         vTaskDelay(20);
     }
 }
 
-void vDrawScore(){
-    char str[15];
-    sprintf(str, "%04d", score);
-    tumDrawText(str, 10,10,0xFF0000);
-    sprintf(str, "high score: %04d", high_score);
-    tumDrawText(str, 10,40,0xFF0000);
-    sprintf(str, "Level : %d", level);
-    tumDrawText(str, SCREEN_WIDTH-100,10,0xFF0000);
-}
-
 void vDrawLives(){
     char str[3];
-    sprintf(str,"%d", lives);
+    sprintf(str,"%d", scoreboard.lives);
     tumDrawText(str, 10,SCREEN_HEIGHT-20,0xFF0000); //drawing the number of lives left
 
     //drawing spaceshipbsto visuliz the number of lives left
-    for(int i = 0; i < lives; i++){
+    for(int i = 0; i < scoreboard.lives; i++){
         tumDrawLoadedImage(life_img,30 + i*30,SCREEN_HEIGHT-20);
     }
 
     //Insert GAME OVER Text here
 }
 
+void vDrawScore(){
+    if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
+        char str[15];
+        sprintf(str, "%04d", scoreboard.score);
+        tumDrawText(str, 10,10,0xFF0000);
+        sprintf(str, "high score: %04d", scoreboard.high_score_sp);
+        tumDrawText(str, 10,40,0xFF0000);
+        sprintf(str, "Level : %d", scoreboard.level);
+        tumDrawText(str, SCREEN_WIDTH-100,10,0xFF0000);
+        xSemaphoreGive(scoreboard.lock);
+        vDrawLives();
+    }
+}
 
 void vDrawBunkers(){
     for(int i = 0;i<4;i++){
@@ -867,7 +910,6 @@ void vDrawBunkers(){
 
 void vDrawStatcItems(){
     vDrawScore();
-    vDrawLives();
     vDrawBunkers();
     // Draw bottom cave
     tumDrawLine(0,SCREEN_HEIGHT-30,SCREEN_WIDTH,SCREEN_HEIGHT-30,2,0x00FF00);
@@ -879,7 +921,7 @@ void vDrawSpaceship(){
 }
 
 void vDrawBullet(){
-    tumDrawLine(spaceship.bullet.coord.x,spaceship.bullet.coord.y,spaceship.bullet.coord.x,spaceship.bullet.coord.y - 5,10, 0x0000FF);
+    tumDrawLine(spaceship.bullet.coord.x,spaceship.bullet.coord.y,spaceship.bullet.coord.x,spaceship.bullet.coord.y - 5,3, 0x0000FF);
 }
 
 void vDrawBomb(){
@@ -916,9 +958,9 @@ void vDrawAliens(){
 }
 
 void vDrawMothership(){
-    if (xSemaphoreTake(spaceship.lock, 0) == pdTRUE){
+    if (xSemaphoreTake(mothership.lock, 0) == pdTRUE){
         tumDrawLoadedImage(mothership_img,mothership.coord.x,mothership.coord.y);
-        xSemaphoreGive(spaceship.lock);
+        xSemaphoreGive(mothership.lock);
     }
 }
 
@@ -1000,7 +1042,7 @@ int main(int argc, char *argv[])
         PRINT_ERROR("Failed to create buttons lock");
         goto err_buttons_lock;
     }
-
+    scoreboard.lock = xSemaphoreCreateMutex(); //locking mechanism
     if (xTaskCreate(vDrawTask, "DrawTask", mainGENERIC_STACK_SIZE * 2, NULL,
                     mainGENERIC_PRIORITY, &DrawTask) != pdPASS) {
         goto err_demotask;
