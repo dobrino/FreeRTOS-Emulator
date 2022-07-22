@@ -103,7 +103,7 @@ struct scoreboard{
     int score;
     int buffer;
     int high_score_sp;
-    int hight_score_mp;
+    int high_score_mp;
     int level;
     int lives;
     SemaphoreHandle_t lock;
@@ -262,12 +262,7 @@ void changeState(volatile unsigned char *state, unsigned char forwards)
             }  
             break;
         case END_GAME:
-            if (*state == STATE_COUNT - 1) {
-                *state = STATE_COUNT - 3; //Restarting Game
-            }
-            else {
-                *state = STATE_COUNT - 1; //Ending Game 
-            }
+           *state = 0;
             break;
         default:
             break;
@@ -434,6 +429,7 @@ void vLoadImages(){
     tumDrawSetLoadedImageScale(start__game_img,0.25);
 }
 const alien_position_y = 300; 
+char str[40];
 void vDrawScores(int tick_counter){ //Explaining score counts for different alien types in Start Screen
     if(tick_counter >= 60){
         tumDrawLoadedImage(alien_img[1][1],20,alien_position_y);//alien1
@@ -442,6 +438,15 @@ void vDrawScores(int tick_counter){ //Explaining score counts for different alie
         tumDrawText("20 Points", 50, alien_position_y+40,0xFFFFFF);//alienscore2:
         tumDrawLoadedImage(alien_img[3][1],20,alien_position_y+80);//alien3
         tumDrawText("10 Points", 50, alien_position_y+80,0xFFFFFF);//alienscore3
+
+        // Draw Highscores 
+        if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
+            sprintf(str,"SP Highscore: %04d", scoreboard.high_score_sp);
+            tumDrawText(str,50,alien_position_y+110,0xFF00FF);
+             sprintf(str,"MP Highscore: %04d", scoreboard.high_score_mp);
+            tumDrawText(str,50,alien_position_y+130,0xFF00FF);
+            xSemaphoreGive(scoreboard.lock);
+        }
     }
 }
 
@@ -811,6 +816,18 @@ void vInitSpaceship(){
     xSemaphoreGive(spaceship.lock);  
 }
 
+void vCheats(){
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(1)]) { // Equiv to SDL_SCANCODE_Q
+            if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
+                scoreboard.lives = -1;
+                xSemaphoreGive(scoreboard.lock);
+            }
+        }
+        xSemaphoreGive(buttons.lock);
+    }
+}
+
 void  vControlTask(){
 
 
@@ -830,13 +847,6 @@ void  vControlTask(){
             xSemaphoreGive(buttons.lock);
         }
          
-        if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-            if (buttons.buttons[KEYCODE(
-                                    Q)]) { // Equiv to SDL_SCANCODE_Q
-                exit(EXIT_SUCCESS);
-            }
-            xSemaphoreGive(buttons.lock);
-        }
         if (xSemaphoreTake(spaceship.lock, 0) == pdTRUE){
 
             // Spaceship Control
@@ -857,6 +867,7 @@ void  vControlTask(){
                 }
                 xSemaphoreGive(buttons.lock);
             }
+            vCheats();
             // shooting
             vShootBullet();
 
