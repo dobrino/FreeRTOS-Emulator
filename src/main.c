@@ -127,6 +127,7 @@ struct spaceship{
     struct bullet bullet;
     coord_t bullet_coord;
     SemaphoreHandle_t lock;
+    char alive;
 };
 static struct spaceship spaceship;
 static image_handle_t spaceship_img = NULL;
@@ -156,7 +157,7 @@ struct bomb{
     coord_t coord;
     SemaphoreHandle_t lock;
 };
-static struct bomb bomb = {NULL, {0,0}};
+static struct bomb bomb = {NULL, {0,0},NULL};
 
 
 static image_handle_t explosion_img_1 = NULL;
@@ -505,13 +506,14 @@ void vIntroTask(void *pvParameters)
 void vMothershipControl(){
 
     //initing spaeship
-    xSemaphoreGive(mothership.lock);
+    mothership.alive = 1;
     int tick_counter = 0;
     char direction = NULL; //move right by default
+    xSemaphoreGive(mothership.lock);
 
     while(1){
         tick_counter++;
-        if (xSemaphoreTake(mothership.lock, 0) == pdTRUE){
+        if (xSemaphoreTake(mothership.lock, 0) == pdTRUE && mothership.alive){
             if(tick_counter > 20){
                 if(direction){
                     //printf();
@@ -540,6 +542,8 @@ void vMothershipControl(){
 }
 
 void vCheckHit(){
+
+    //Aliens
     for(int row = 0; row < 5; row++){
         for(int col = 0; col < 8; col++){
             if (xSemaphoreTake(alien_lock, 0) == pdTRUE){
@@ -568,6 +572,20 @@ void vCheckHit(){
                 xSemaphoreGive(alien_lock);
             }
         }
+    }
+
+    //Mothership
+    if (xSemaphoreTake(mothership.lock, 0) == pdTRUE){
+        if((abs(spaceship.bullet.coord.x - mothership.coord.x - 27) <= 27) && mothership.alive){
+            if(abs(spaceship.bullet.coord.y - mothership.coord.y - 15) <= 15){ 
+                mothership.alive = NULL;
+                if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
+                    scoreboard.score += 200;
+                    xSemaphoreGive(scoreboard.lock);
+                }
+            }
+        }
+        xSemaphoreGive(mothership.lock);
     }
 }
 
@@ -817,15 +835,32 @@ void vInitSpaceship(){
 }
 
 void vCheats(){
+    //infinite lives 
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
         if (buttons.buttons[KEYCODE(1)]) { // Equiv to SDL_SCANCODE_Q
             if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
-                scoreboard.lives = -1;
+                buttons.buttons[KEYCODE(1)] = 0; //debounce 
+                scoreboard.lives = -1; //- lives will not trigger any game stop --> infinite lives, lol
+                xSemaphoreGive(scoreboard.lock);
+            }
+        }
+        if (buttons.buttons[KEYCODE(2)]) { // Equiv to SDL_SCANCODE_Q
+            if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
+                buttons.buttons[KEYCODE(2)] = 0; //debounce 
+                scoreboard.score += 10 ; //- lives will not trigger any game stop --> infinite lives, lol
+                xSemaphoreGive(scoreboard.lock);
+            }
+        }
+        if (buttons.buttons[KEYCODE(3)]) { // Equiv to SDL_SCANCODE_Q
+            if (xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
+                buttons.buttons[KEYCODE(3)] = 0; //debounce 
+                scoreboard.level += 1 ; //- lives will not trigger any game stop --> infinite lives, lol
                 xSemaphoreGive(scoreboard.lock);
             }
         }
         xSemaphoreGive(buttons.lock);
     }
+
 }
 
 void  vControlTask(){
@@ -969,8 +1004,9 @@ void vDrawAliens(){
 }
 
 void vDrawMothership(){
-    if (xSemaphoreTake(mothership.lock, 0) == pdTRUE){
+    if (xSemaphoreTake(mothership.lock, 0) == pdTRUE && mothership.alive){
         tumDrawLoadedImage(mothership_img,mothership.coord.x,mothership.coord.y);
+        tumDrawBox(mothership.coord.x, mothership.coord.y,55,30,0x00FFFF);
         xSemaphoreGive(mothership.lock);
     }
 }
