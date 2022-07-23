@@ -289,27 +289,27 @@ void vUDPControlTask(void *pvParameters)
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(15));
-        // while (xQueueReceive(BallYQueue, &ball_y, 0) == pdTRUE) {
-        // }
-        // while (xQueueReceive(PaddleYQueue, &paddle_y, 0) == pdTRUE) {
-        // }
-        // while (xQueueReceive(DifficultyQueue, &difficulty, 0) == pdTRUE) {
-        // }
-        // signed int diff = spaceship.coord.x - mothership.coord.x;
-        // if (diff > 0) {
-        //     sprintf(buf, "+%d", diff);
-        // }
-        // else {
-        //     sprintf(buf, "-%d", -diff);
-        // }
-        // aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf,
-        //              strlen(buf));
-        // if (last_difficulty != difficulty) {
-        //     sprintf(buf, "D%d", difficulty + 1);
-        //     aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf,
-        //                  strlen(buf));
-        //     last_difficulty = difficulty;
-        // }
+        while (xQueueReceive(BallYQueue, &ball_y, 0) == pdTRUE) {
+        }
+        while (xQueueReceive(PaddleYQueue, &paddle_y, 0) == pdTRUE) {
+        }
+        while (xQueueReceive(DifficultyQueue, &difficulty, 0) == pdTRUE) {
+        }
+        signed int diff = spaceship.coord.x - mothership.coord.x;
+        if (diff > 0) {
+            sprintf(buf, "+%d", diff);
+        }
+        else {
+            sprintf(buf, "-%d", -diff);
+        }
+        aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf,
+                     strlen(buf));
+        if (last_difficulty != difficulty) {
+            sprintf(buf, "D%d", difficulty + 1);
+            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf,
+                         strlen(buf));
+            last_difficulty = difficulty;
+        }
     }
 }
 
@@ -670,6 +670,11 @@ void vMothershipControl(){
     int tick_counter = 0;
     char direction = NULL; //move right by default
     xSemaphoreGive(mothership.lock);\
+
+    HandleUDP = xSemaphoreCreateMutex();
+    if (!HandleUDP) {
+        exit(EXIT_FAILURE);
+    }
 
     StartDirectionQueue = xQueueCreate(1, sizeof(unsigned char));
     if (!StartDirectionQueue) {
@@ -1302,7 +1307,7 @@ int main(int argc, char *argv[])
 
     vTaskSuspend(DrawTask);
     vTaskSuspend(IntroTask);
-    vTaskSuspend(MothershipControl);
+    //vTaskSuspend(MothershipControl);
     vTaskSuspend(AlienControlTask);
     vTaskSuspend(ControlTask);
 
