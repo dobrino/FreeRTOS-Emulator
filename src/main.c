@@ -61,7 +61,7 @@
 #define UDP_RECEIVE_PORT 1234
 #define UDP_TRANSMIT_PORT 1235
 
-#define ALIEN_COUNT 4
+#define ALIEN_COUNT 40
 //Screen
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -990,7 +990,7 @@ void vDetectHits(){
     //Check if aliens reached bottom
     if(xSemaphoreTake(alien_lock, 0) == pdTRUE){
         for(int col = 0; col < 8; col++){
-            if(aliens[current_last_row][col].coord.y == spaceship.coord.y-20){
+            if(aliens[current_last_row][col].coord.y >= spaceship.coord.y-20){
                 vDeathroutine();
             }
         }
@@ -1000,7 +1000,7 @@ void vDetectHits(){
     //Level Up
     if(xSemaphoreTake(alien_lock, 0) == pdTRUE){
         if(xSemaphoreTake(mothership.lock, 0) == pdTRUE){
-            if((current_alien_count <= 0) /*&& (mothership.alive == 0)*/){
+            if((current_alien_count <= 0) && mothership.alive == 0){
                 printf("Game restart init\n");
                 if(xSemaphoreTake(scoreboard.lock, 0) == pdTRUE){
                     scoreboard.level++;
@@ -1017,10 +1017,7 @@ void vDetectHits(){
 
     if(init_game){
         if(xSemaphoreTake(bomb.lock, 0) == pdTRUE){ 
-            vInitSpaceship();
-            vInitBunkers();
-            vWakeUpAliens(); 
-            vInitBomb();
+            vInitGame();
             init_game = 0;
             xSemaphoreGive(bomb.lock);
         }
@@ -1076,7 +1073,7 @@ void vDropBomb(){
 void vAlienMotion(){
     if(direction){//moving to the right
         alien_offset.x = alien_offset.x + alien_speed/2;
-        if(aliens[0][7].coord.x >= SCREEN_WIDTH-20){//hitting right wall
+        if(alien_offset.x >= 300){//hitting right wall
             alien_offset.y = alien_offset.y+15;
             direction = 0;
         }
